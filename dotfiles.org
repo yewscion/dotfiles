@@ -1,0 +1,2100 @@
+#+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline
+#+options: author:t broken-links:nil c:nil creator:nil
+#+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:t
+#+options: p:nil pri:nil prop:nil stat:t tags:t tasks:t tex:t
+#+options: timestamp:t title:t toc:t todo:t |:t
+#+title: dotfiles
+#+date: <2021-09-21 Tue>
+#+author: rodnchr
+#+email: rodnchr@ua6ff97dd3b1950.ant.amazon.com
+#+language: en
+#+select_tags: export
+#+exclude_tags: noexport
+#+creator: Emacs 28.0.50 (Org mode 9.4.6)
+#+options: html-link-use-abs-url:nil html-postamble:auto
+#+options: html-preamble:t html-scripts:t html-style:t
+#+options: html5-fancy:nil tex:t
+#+html_doctype: xhtml-strict
+#+html_container: div
+#+description:
+#+keywords:
+#+html_link_home:
+#+html_link_up:
+#+html_mathjax:
+#+html_equation_reference_format: \eqref{%s}
+#+html_head:
+#+html_head_extra:
+#+subtitle:
+#+infojs_opt:
+#+latex_header:
+#+texinfo_filename:
+#+texinfo_class: info
+#+texinfo_header:
+#+texinfo_post_header:
+#+subtitle:
+#+subauthor:
+#+texinfo_dir_category:
+#+texinfo_dir_title:
+#+texinfo_dir_desc:
+#+texinfo_printed_title:
+#+man_class:
+#+man_class_options:
+#+man_header:
+* Concept
+* =~/.emacs.d/init.el=
+  This is the big one, of course. I live out of emacs. If I can't make
+  this work, the whole concept is failed.
+
+  I used to maintain a slew of files to separate things out and make
+  them easier to maintain. This should let me abandon that in favor of
+  one large tangled file, with the separation being maintained
+  entirely here.
+** Windows Check
+   I sometimes have to use Windows for work. If so, I need to have the
+   HOME directory set properly.
+
+   #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (if (string-equal system-type "windows-nt")
+         (progn (setenv "HOME" "c:/Users/rodnchr")))
+   #+end_src
+** Custom File Location
+   This is the first hurdle: If I use Customize (including installing
+   new packages) it will write directly to this file, and I'll have to
+   make sure that the file in this repo gets updated.
+
+   #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (setq custom-file "~/.emacs.d/custom.el")
+   #+end_src
+
+   That said, most things in =Customize= should be migrated out
+   eventually. Right now I mostly keep my selected package list and my
+   main font selection there, IIRC.
+** Packages
+   First, we'll initialize the package system to use ELPA and MELPA,
+   and allow the loading of any local elisp files under
+   =~/.emacs.d/lisp=.
+
+   #+begin_src elisp :tangle ~/.emacs.d/init.el
+     ;;; Package System
+     (require 'package)
+     (setq package-archives '(("gnu" . "https://elpa.gnu.org/packages/")
+                             ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+                             ("melpa" . "https://melpa.org/packages/")
+                             ("melpa-stable" . "https://stable.melpa.org/packages/")))
+     (package-initialize)
+     ;;; Local Elisp
+     (add-to-list 'load-path "~/.emacs.d/lisp/")
+   #+end_src
+
+   Next, we start defining package-specific customizations. Each will
+   be under their own heading.
+*** Regex Builder
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Regex Builder Config
+      (require 're-builder)
+      (setq reb-re-syntax 'string)
+    #+end_src
+*** EMMS
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; EMMS Config
+      (require 'emms-setup)
+      (require 'emms-player-mpv)
+      (require 'emms-player-simple)
+      (require 'emms-streams)
+      (require 'emms-mode-line-cycle)
+      (emms-all)
+      (emms-default-players)
+      (emms-mode-line-cycle 1)
+      (define-emms-simple-player xmp '(file)
+        (regexp-opt '(".669" ".AMF" ".DSM" ".FAR" ".GDM" ".IT" ".IMF"
+                      ".MED" ".MTM" ".OKT" ".S3M" ".STM" ".STX" ".ULT"
+                      ".APUN" ".XM" ".MOD" ".amf" ".dsm" ".far" ".gdm"
+                      ".it" ".imf" ".mod" ".med" ".mtm" ".okt" ".s3m"
+                      ".stm" ".stx" ".ult" ".apun" ".xm" ".mod" ".MOD"))
+        "xmp" "")
+      (define-emms-simple-player adlmidi '(file)
+        (regexp-opt '(".mid"))
+        "adlmidi-wrapper" "-nl")
+      (setq emms-source-file-default-directory
+            "~/Music/"
+      
+            emms-player-list
+            '(emms-player-mpv
+              emms-player-xmp
+              emms-player-timidity
+              emms-player-adlmidi) ; Reverse Order of Precedence
+      
+            emms-player-timidity-command-name
+            "timidity"
+      
+            emms-player-timidity-parameters
+            '("-EFreverb=G,127" "-EFchorus=s,25" "-EFresamp=L" "-EFvlpf=m")
+      
+            emms-track-description-function
+            'emms-info-track-description
+            emms-mode-line-cycle-use-icon-p nil
+            emms-mode-line-cycle-max-width 32
+            )
+    #+end_src
+*** Clojure / CIDER
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Clojure Config
+      (setq org-babel-clojure-backend 'cider)
+    #+end_src
+*** EPUB / nov-mode
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; EPUB Config
+      (add-to-list 'auto-mode-alist
+                   '("\\.epub\\'" . nov-mode))
+      (setq nov-variable-pitch nil
+            nov-text-width 80)
+    #+end_src
+*** Backends                                                       :refactor:
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Backend Defs
+      (setq markdown-command "kramdown"
+            inferior-lisp-program "sbcl"
+            inferior-julia-program-name "julia")
+    #+end_src
+*** I Ching
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; i-ching-mode
+      (setq i-ching-hexagram-font "unifont")
+    #+end_src
+*** PlantUML
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; plantuml-mode
+      (setq
+       plantuml-default-exec-mode 'jar
+       plantuml-jar-path "~/.local/share/plantuml.jar")
+    #+end_src
+*** Sunshine                                                       :refactor:
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; sunshine-mode ; NOT WORKING
+      (setq
+       sunshine-appid "fee8c7a72b1dae29f75f3dfa0b337169"
+       sunshine-location "Pittsburgh, PA"
+       sunshine-show-icons t
+       sunshine-units 'metric)
+    #+end_src
+*** httpd
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; httpd config
+      (setq httpd-port 8888)
+    #+end_src
+*** MPD
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; mpd modes
+      (setq libmpdel-hostname "s"
+            mpc-host "s")
+    #+end_src
+*** Mastodon
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; mastodon-mode
+      (setq mastodon-instance-url "https://tech.lgbt/")
+    #+end_src
+*** ANSI Color
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; ANSI Color
+      (setq ansi-color-faces-vector
+            [default default default
+              italic underline success
+              warning error])
+    #+end_src
+*** Dired
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Dired
+
+      (setq dired-listing-switches "-aDFhikmopqs")
+    #+end_src
+*** Info
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Info
+
+      (setq Info-additional-directory-list '("~/.local/share/info"))
+    #+end_src
+** Custom
+
+   #+begin_src elisp :tangle ~/.emacs.d/custom.el
+     (custom-set-variables
+      ;; custom-set-variables was added by Custom.
+      ;; If you edit it by hand, you could mess it up, so be careful.
+      ;; Your init file should contain only one such instance.
+      ;; If there is more than one, they won't work right.
+      '(custom-enabled-themes '(misterioso))
+      '(custom-safe-themes
+        '("143d897548e5a7efb5cf92c35bd39fe7c90cbd28f9236225ad3e80e1b79cef8a" default))
+      '(elfeed-feeds
+        '("https://jany.st/rss.xml" "https://alhassy.github.io/rss.xml" "http://retro-style.software-by-mabe.com/blog-atom-feed" "https://freedom-to-tinker.com/feed/rss/" "https://planet.lisp.org/rss20.xml" "https://ambrevar.xyz/atom.xml" "https://andysalerno.com/index.xml" "https://p6steve.wordpress.com/rss" "https://yewscion.com/feed.xml" "https://blog.tecosaur.com/tmio/rss.xml"))
+      '(package-selected-packages
+        '(free-keys vcard jinja2-mode elpher mastodon guix bongo emms-mode-line-cycle plantuml-mode graphviz-dot-mode geiser-gauche geiser-guile geiser extempore-mode ox-mediawiki ## nov org-cliplink ess esup telega zzz-to-char ssh-agency yahtzee xbm-life wpuzzle versuri verb validate-html v-mode uuidgen universal-emotions-emoticons unfill tuareg tldr threes sunshine spdx spark sokoban slime-volleyball slime-repl-ansi-color slime-company skeletor sicp shen-elisp sass-mode restart-emacs rego-mode rec-mode raku-mode pikchr-mode projectile poker podcaster ox-timeline ox-slack ox-report ox-minutes ox-json ox-gemini ox-epub orgtbl-ascii-plot orgtbl-aggregate org-vcard org-special-block-extras org-scrum org-roam-server org-roam org-pomodoro org-pdftools org-d20 org-clock-today org-brain org-board ob-lfe metronome lice lfe-mode julia-repl julia-mode inf-elixir ssh octo-mode json-mode janet-mode ipcalc impatient-mode iedit i-ching guru-mode gameoflife fennel-mode ereader emojify-logos elfeed haskell-mode edit-indirect snow org-analyzer org-emms org-page slack lua-mode easy-kill-extras easy-kill disable-mouse slime shen-mode ob-elixir elixir-mode ob-rec ob-prolog ob-nim ob-kotlin ob-elvish ob-elm ob-ammonite cider emms org-chef mpdel markdown-changelog inform7 yaml-mode xmlunicode xml+ writeroom-mode writegood-mode wordsmith-mode wc-goal-mode visual-fill-column typo tea-time sed-mode scala-mode sbt-mode robe powershell paredit org-journal org-contrib ob-translate ob-rust ob-mermaid org-kanban ob-http ob-browser number markdown-toc markdown-preview-mode markdown-mode+ magit inform-mode fountain-mode emojify csv-mode abc-mode markdown-mode use-package)))
+     (custom-set-faces
+      ;; custom-set-faces was added by Custom.
+      ;; If you edit it by hand, you could mess it up, so be careful.
+      ;; Your init file should contain only one such instance.
+      ;; If there is more than one, they won't work right.
+      '(default ((t (:inherit nil :extend nil :stipple nil :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight normal :height 110 :width normal :foundry "outline" :family "FreeMono")))))
+   #+end_src
+
+   That said, we still need to load it, and at this point in the
+   process.
+
+   #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (load "~/.emacs.d/custom.el")
+   #+end_src
+** Functions
+   These are all either functions I've written, or functions I pulled
+   from one place or another.
+*** Copy Lines That Match A Regex
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     ;;; Functions
+
+     (defun copy-lines-matching-re (re)
+       "find all lines matching the regexp RE in the current region
+     putting the matching lines in a buffer named *matching*"
+       (interactive "sRegexp to match: ")
+       (let ((result-buffer (get-buffer-create "*matching*")))
+         (with-current-buffer result-buffer
+           (erase-buffer))
+         (save-match-data
+           (save-excursion
+             (save-restriction
+               (narrow-to-region (region-beginning) (region-end))
+               (goto-char (point-min))
+               (while (re-search-forward re nil t)
+                 (princ
+                  (string-trim
+                   (buffer-substring-no-properties
+                    (line-beginning-position)
+                    (line-beginning-position 2))
+                   "[ \t\r]+" "[ \t\r]+")
+                  result-buffer)))))
+         (pop-to-buffer result-buffer)))
+    #+end_src
+*** Unfill Paragraph
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     ;;; Stefan Monnier <foo at acm.org>. Opposite of fill-paragraph
+     (defun unfill-paragraph (&optional region)
+       "Takes a multi-line paragraph and converts
+     it into a single line of text."
+       (interactive (progn (barf-if-buffer-read-only) '(t)))
+       (let ((fill-column (point-max))
+             ;; This would override `fill-column' if it's an integer.
+             (emacs-lisp-docstring-fill-column t))
+         (fill-paragraph nil region)))
+    #+end_src
+*** Org Link Functions
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     ;;; ggrocca and Iqbal Ansari from
+     ;;; https://emacs.stackexchange.com
+     ;;; /questions/3981/how-to-copy-links-out-of-org-mode
+
+     (defun org-link-grab-url ()
+       (interactive)
+       (let* ((link-info (assoc :link (org-context)))
+              (text (when link-info
+                      (buffer-substring-no-properties
+                       (or (cadr link-info) (point-min))
+                       (or (caddr link-info) (point-max))))))
+         (if (not text)
+             (error "Not in org link")
+           (string-match org-bracket-link-regexp text)
+           (kill-new (substring text (match-beginning 1) (match-end 1))))))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (defun my-kill-org-link (text)
+       (if (derived-mode-p 'org-mode)
+           (insert text)
+         (string-match org-bracket-link-regexp text)
+         (insert (substring text (match-beginning 1) (match-end 1)))))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (defun my-org-retrieve-url-from-point ()
+       (interactive)
+       (let* ((link-info (assoc :link (org-context)))
+              (text (when link-info
+                      ;; org-context seems to return nil
+                      ;; if the current element starts at
+                      ;; buffer-start or ends at buffer-end
+                      (buffer-substring-no-properties
+                       (or (cadr link-info) (point-min))
+                       (or (caddr link-info) (point-max))))))
+         (if (not text)
+             (error "Not in org link")
+           (add-text-properties 0 (length text)
+                                '(yank-handler (my-yank-org-link)) text)
+           (kill-new text))))
+    #+end_src
+*** Fill Buffer
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     ;;; Dan from https://emacs.stackexchange.com/a/18110
+
+     (defun fill-buffer ()
+       (interactive)
+       (save-excursion
+         (save-restriction
+           (widen)
+           (fill-region (point-min) (point-max)))))
+    #+end_src
+*** Read File Content
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     ;;; http://ergoemacs.org/emacs/elisp_read_file_content.html
+     (defun get-string-from-file (filePath)
+       "Return filePath's file content."
+       (with-temp-buffer
+         (insert-file-contents filePath)
+         (buffer-string)))
+     (defun read-lines (filePath)
+       "Return a list of lines of a file at filePath."
+       (with-temp-buffer
+         (insert-file-contents filePath)
+         (split-string (buffer-string) "\n" t)))
+    #+end_src
+*** Orgy (My Extensions to Org Mode)
+**** CM Functions
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Orgy, functions that help me work in Org Mode (Self Defined)
+
+     (defun orgy-insert-cm-step-properties ()
+       "Inserts the default properties for a CM step under the current
+     heading."
+       (interactive)
+       (org-entry-put (point) "Duration" "10m")
+       (org-entry-put (point) "Type" "Activity")
+       (org-entry-put (point) "CNCE" "None")
+       (sit-for 1)
+       )
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (defun orgy-insert-cm-step-subheadings ()
+       "Inserts the default headings for a step, populated with empty
+     lists."
+       (interactive)
+       (next-line 1)
+       (move-end-of-line nil)
+       (insert "
+             ,#+begin_src markdown
+               Example Text.
+             ,#+end_src
+     ")
+       (move-beginning-of-line nil)
+       (org-insert-heading-respect-content)
+       (org-do-demote)
+       (insert "Activity Checklist
+             - Item x 1
+             - or
+             - Title
+               ,#+begin_src markdown
+                 Example Text.
+               ,#+end_src
+     ,******* Rollback Checklist
+             - Item x 1
+             - or
+             - Title
+               ,#+begin_src markdown
+                 Example Text.
+               ,#+end_src")
+       (forward-line -19)
+       )
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (defun orgy-setup-cm-step ()
+       "Turns the current heading into a CM Step."
+       (interactive)
+       (orgy-insert-cm-step-properties)
+       (orgy-insert-cm-step-subheadings)
+       )
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (defun orgy-lookup-property (key default)
+       (interactive)
+       "Takes a Key and returns the Value stored in the matching
+       Property of the Org Entry at Point."
+       (let ((properties (org-entry-properties)))
+         (if (string-empty-p
+              (concat (cdr (assoc key properties)))
+              )
+             default
+           (concat (cdr (assoc key properties))))))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (defun orgy-kill-cm-for-hog ()
+       (interactive)
+       "Takes the entry at point and forms the CM List variable for
+     the HOG report."
+       (kill-new (format " 1. %s \\\\\n %s \\\\\n (%s)[%s]"
+                         (orgy-lookup-property "ITEM"
+                                               "Unnamed CM")
+                         (orgy-lookup-property "URL"
+                                               "Local Copy Only; No URL")
+                         (orgy-lookup-property "TODO"
+                                               "UNKNOWN STATUS")
+                         (replace-regexp-in-string
+                          "\\(<\\|>\\)" ""
+                          (orgy-lookup-property "SCHEDULED"
+                                                "Unscheduled")))))
+    #+end_src
+**** Tables to Entries (Import CSV to Org Headings)
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;;; Orgy Functions to turn tables into entries
+      (defun orgy-indent-header-level (header-level)
+        "Adds spaces in hardformatted strings based on a given header
+      level in Org-Mode."
+        (make-string (+ header-level 1) (char-from-name "SPACE")))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun orgy-property-from-table-if-not-empty
+          (property list value-number header-level)
+        "Returns a property line of format 'property: value' with the
+      value pulled from a list."
+        (if
+            (not (eq (nth value-number list) ""))
+            (format "%s:%s: %s\n"
+                    (orgy-indent-header-level header-level)
+                    property
+                    (nth value-number list))))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun orgy-heading-summary (status list value-number header-level)
+        "Returns an Org heading based on supplied values."
+        (if
+            (not (eq (nth value-number list) ""))
+            (format "%s %s %s\n"
+                    (make-string header-level (char-from-name "ASTERISK"))
+                    (upcase status)
+                    (if (> (string-width (nth value-number list)) 50)
+                        (substring (nth value-number list) 0 50)
+                      (nth value-number list)))
+          (format "%s %s %s\n"
+                  (make-string header-level (char-from-name "ASTERISK"))
+                  "TODO"
+                  "Generic Heading                           :fixme:"
+                  )))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun orgy-row-to-entry
+          (list header-level value-number-for-header
+                value-number-for-description list-of-properties status)
+        (interactive)
+        "For use in Org-Babel. Returns a string which will print a
+      row's values as an Org Entry."
+        (let ((list-length (length list))
+              (prop-length (length list-of-properties))
+              (header-string
+               (orgy-heading-summary status list
+                                     value-number-for-header header-level))
+              (header-indent (orgy-indent-header-level header-level)))
+          (if (not (eq list-length prop-length))
+              (message
+               (format "Row/Property Length Mismatch! Row: %d Prop: %d"
+                       list-length prop-length))
+            (concat
+             header-string
+             header-indent
+             ":PROPERTIES:\n"
+             (orgy-row-to-properties list list-of-properties header-level)
+             header-indent
+             ":END:\n\n"
+             header-indent
+             (nth value-number-for-description list)
+             "\n\n"))))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun orgy-row-to-properties (value-list property-list header-level)
+        "Takes two lists, and create the contents of a :PROPERTIES:
+      drawer out of them in the form :property-list: value-list,
+      indented by the given header-level."
+        (if value-list
+            (concat
+             (if (not (eq (car value-list) ""))
+                 (format "%s:%s: %s\n"
+                         (orgy-indent-header-level header-level)
+                         (car property-list)
+                         (car value-list)))
+             (orgy-row-to-properties
+              (cdr value-list)
+              (cdr property-list)
+              header-level))))
+    #+end_src
+**** Pull Task Clock to HOG
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (fset 'cdr:orgy-pull-task-clock-to-hog
+            (kmacro-lambda-form [?\M-< ?\C-a ?\C-s ?* ?  ?T ?a ?s ?k ?s
+                                       return ?\C-c ?\C-e ?\C-b ?\C-s
+                                       ?t ?A ?\C-  ?\C-s ?\C-q ?\C-j
+                                       ?\C-q ?\C-j return ?\M-w ?\C-x ?k
+                                       return ?\C-x ?\C-o ?\C-x ?0 ?\M-<
+                                       ?\C-s ?* ?  ?H ?O ?G return tab
+                                       return ?\C-a ?\M-x ?h ?o ?g ?-
+                                       ?s ?l ?e backspace backspace ?k
+                                       ?e ?l tab return ?\C-r ?< ?p ?r
+                                       ?e ?> return ?\C-n ?\C-c ?\'
+                                       ?\C-y backspace backspace
+                                       ?\C-c ?\' ?\C-c ?\C-p]
+                                0 "%d"))
+    #+end_src
+*** I Ching Pull
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Misc
+      (defun i-ching-pull ()
+        "Casts and Displays the Interpretation of a Hexagram."
+        (interactive)
+        (let ((cast (i-ching-interpretation (i-ching-cast)))
+              (reading-buffer (get-buffer-create "*I Ching*")))
+          (with-current-buffer reading-buffer
+            (erase-buffer)
+            (text-mode)
+            (insert cast)
+            (fill-individual-paragraphs (point-min) (point-max)))
+          (display-buffer reading-buffer))
+        t)
+    #+end_src
+*** Copy Entire Org Babel Src Block
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun org-copy-src-block ()
+        "Copies the entire contents of a source or example block as if
+      it were the entirety of the buffer."
+        (interactive)
+        (org-edit-src-code)
+        (mark-whole-buffer)
+        (easy-kill 1)
+        (org-edit-src-abort))
+    #+end_src
+*** Go To Next CM Step
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (fset 'orgy-cm-step-next
+            (kmacro-lambda-form [?\C-c ?\C-p ?\C-c ?\C-p ?\C-c
+                                       ?\C-p ?\M-f ?\C-f tab ?\C-n]
+                                0 "%d"))
+    #+end_src
+*** Toggle EMMS Midi Player
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun emmsy-toggle-midi-player ()
+        "Toggles between Timidity and ADLMidi without needing to type
+      it out every time."
+        (interactive)
+        (if (equal (cadddr emms-player-list) 'emms-player-timidity)
+            (progn (message "Changing MIDI player to ADLMidi!")
+                   (setq emms-player-list
+                         '(emms-player-mpv
+                           emms-player-xmp
+                           emms-player-timidity
+                           emms-player-adlmidi)))
+          (progn (message "Changing MIDI player to Timidity!")
+                   (setq emms-player-list
+                         '(emms-player-mpv
+                           emms-player-xmp
+                           emms-player-adlmidi
+                           emms-player-timidity)))))
+    #+end_src
+*** EMMS Describe MIDI/MOD as Filename
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; EMMS Description Shims.
+      (defun cdr:emms-track-description (track)
+        "Isolates the filename of TRACK if timidity or xmp could play it."
+        (if (or (emms-player-timidity-playable-p track)
+                (emms-player-xmp-playable-p track))
+            (car (last (split-string (cdr (assoc 'name track)) "/")))
+          (emms-info-track-description track)))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun cdr:emms-describe-track ()
+        "Describe the currently playing track with metadata unless it is
+      a MIDI/MOD file, in which case it will be just the file name."
+        (cdr:emms-track-description (emms-playlist-current-selected-track)))
+    #+end_src
+*** Header and Mode Line
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Header Line Format Function
+      (defun cdr:display-header-line ()
+        (setq header-line-format
+              '("%e" mode-line-misc-info)))
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Mode Line Formate Function
+      (defun cdr:display-mode-line ()
+        (setq mode-line-format '("%e" mode-line-front-space
+                                 mode-line-mule-info
+                                 mode-line-client
+                                 mode-line-modified
+                                 mode-line-remote
+                                 mode-line-frame-identification
+                                 mode-line-buffer-identification
+                                 "   "
+                                 mode-line-position
+                                 (vc-mode
+                                  vc-mode)
+                                 " "
+                                 mode-line-modes
+                                 mode-line-end-spaces)))
+    #+end_src
+** Skeletons
+   These are all templates I defined using skeleton.el
+*** HOG Skeleton
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Skeletons
+      (define-skeleton hog-skeleton
+        "Sets up a new hog template in my org file"
+        nil
+        "** " '(let ((current-prefix-arg '(16)))(call-interactively
+        'org-time-stamp-inactive)) ?\n "*** Hand-Off Details" ?\n "
+        ,#+begin_src markdown" ?\n "    ### Summary" ?\n "    <pre>" ?\n ?\n
+        "    </pre>" ?\n "    ### CM List" ?\n ?\n " #+end_src" ?\n
+        ?\n "*** Start of Shift Summary" ?\n ?\n "  #+begin_src markdown"
+        ?\n  "    -" ?\n "  #+end_src" ?\n ?\n)
+    #+end_src
+*** Team Meeting Skeleton
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (define-skeleton teammeeting-skeleton
+        "Sets up a new Team Meeting template in my org file"
+        nil
+        "** Team Meeting "
+        '(let ((current-prefix-arg '(16)))(call-interactively
+        'org-time-stamp-inactive))
+        ?\n "*** SSSPACER" ?\n "**** Safety" ?\n
+        "**** Std Work" ?\n "**** Success" ?\n
+        "*** Projects" ?\n "**** PIT9" ?\n
+        "**** PIT2" ?\n "**** PIT5" ?\n "**** ECs"
+        ?\n "*** Upcoming CMs" ?\n "**** PIT9" ?\n
+        "**** PIT2" ?\n "**** PIT5" ?\n
+        "*** Business News" ?\n "*** Round Robin"
+        ?\n " ")
+    #+end_src
+*** 1:1 Skeleton
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (define-skeleton 1:1-skeleton
+        "Sets up a new 1:1 Prep template in my org file"
+        nil
+        "** Prep for 1:1 Scheduled "
+        '(let ((current-prefix-arg '(4)))
+           (call-interactively 'org-time-stamp-inactive))
+        ?\n
+        "*** Motivation" ?\n
+        "*** Drains" ?\n
+        "*** Growth" ?\n
+        "*** Positives" ?\n
+        "*** Negatives" ?\n
+        "*** Focus" ?\n
+        "*** Questions" ?\n
+        "    - " ?\n
+        "    - " ?\n
+        "    - " ?\n
+        "*** Projects" ?\n
+        "    - " ?\n
+        "    - " ?\n
+        "    - " ?\n
+        ?\n)
+    #+end_src
+** Generators
+   These are my own templating functions, for use in new files when
+   starting out.
+*** Lisp Project Literate Programming File
+
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun my:lisp-project-file-generator ()
+        "Sets up a new org-mode file for literate programming using
+      Common Lisp, ASDF, and Quicklisp."
+        (interactive)
+        (let* ((project-name (read-string "Project Name? "))
+               (project-desc (read-string "One Sentence Description? "))
+               (project-category (read-string "Category for Info? "))
+               (git-name (shell-command-to-string "git config user.name"))
+               (git-email (shell-command-to-string "git config user.email"))
+               (current-timestamp (format-time-string "%Y-%m-%dT%H:%M%Z"))
+               (local-buffer
+                (generate-new-buffer
+                 (concat "*lisp-project-file-generator("
+                         project-name
+                         ")*"))))
+          (with-current-buffer-window local-buffer #'switch-to-buffer nil
+            (org-mode)
+            (princ
+             (concat
+              "# -*- mode: org; fill-column: 80; -*-\n"
+              "#+options: ':t *:t -:t ::t <:t H:3 \\n:nil ^:t arch:headline"
+              "\n#+options: author:t broken-links:mark c:nil creator:t\n#+o"
+              "ptions: d:(not \"LOGBOOK\") date:t e:t email:t f:t inline:t "
+              "num:t\n#+options: p:t pri:nil prop:nil stat:t tags:t tasks:t"
+              "tex:t\n#+options: timestamp:t title:t toc:t todo:t |:t\n#+ti"
+              "tle: " project-name "\n#+date: " current-timestamp "\n#+auth"
+              "or: " git-name "#+email: " git-email "#+language: en\n#+"
+              "select_tags: export\n#+exclude_tags: noexport\n#+creator: Em"
+              "acs 28.0.50 (Org mode 9.4.6)\n#+options: html-link-use-abs-u"
+              "rl:nil html-postamble:auto\n#+options: html-preamble:t html-"
+              "scripts:t html-style:t\n#+options: html5-fancy:t tex:t\n#+ht"
+              "ml_doctype: html5\n#+html_container: div\n#+description: The"
+              " literate programming file for the " project-name " project."
+              "\n#+keywords: lp,lisp," project-name "\n#+html_link_home:\n#"
+              "+html_link_up:\n#+html_mathjax:\n#+html_equation_reference_f"
+              "ormat: \\eqref{%s}\n#+html_head:\n#+html_head_extra:\n#+subt"
+              "itle:\n#+infojs_opt:\n#+latex_header:\n#+texinfo_filename: d"
+              "oc/" project-name "\n#+texinfo_class: info\n#+texinfo_header"
+              ":\n#+texinfo_post_header:\n#+subtitle: " project-desc "\n#+t"
+              "exinfo_dir_category: " project-category "\n#+texinfo_dir_tit"
+              "le: " project-name "\n#+texinfo_dir_desc: " project-desc "\n"
+              "#+texinfo_printed_title: " project-name "\n#+man_class:\n#+m"
+              "an_class_options:\n#+export_file_name: doc/" project-name
+              "\n#+PROPERTY: header-args:text :eval never\n#+PROPERTY: head"
+              "er-args:markdown :eval never\n#+PROPERTY: header-args:fundam"
+              "ental :eval never\n#+PROPERTY: header-args:lisp :noweb yes :"
+              "mkdirp yes\n* Concept\n  This is a literate programming file"
+              "made to support the " project-name "\n  project.\n\n  This s"
+              "ection is reserved for a high-level abstract description of"
+              "\n  what the project is. In particular, the overview should "
+              "walk through\n  the program flow as much as possible, to ens"
+              "ure clarity of thought\n  before code work begins.\n** Overv"
+              "iew\n  This space intentionally left blank.\n* Generic Proje"
+              "ct Files\n  These files exist in every repository, or should"
+              ", anyway. As this is\n  a literate programming file, however"
+              ", they are also included\n  here. While they can mostly stan"
+              "d for themselves, I will add a\n  sentence or two about each"
+              ", as well as any deviations in this\n  specific repo.\n** RE"
+              "ADME\n   This is the all-important gateway into the reposito"
+              "ry. I follow\n   [[https://www.makeareadme.com/][Make a READ"
+              "ME]]'s specification in all of my projects, as I think\nit "
+              "is important to standardize such an outward-facing part of t"
+              "he\n   documentation.\n\n   #+begin_src markdown :tangle \"R"
+              "EADME.md\" :eval never\n     # " project-name "\n\n     "
+              project-desc "\n\n     ## Installation\n\n     Clone this Rep"
+              "ository, add it to [ASDF's directory\n     configuration][a]"
+              ", and call `(ql:quickload \"" project-name "\")`.\n\n\n     "
+              "## Usage\n\n     ```lisp\n     "
+              "(ql:quickload \"" project-name "\")\n     ```\n\n\n     ## C"
+              "ontributing\n\n     Pull Requests are welcome, as are bugfix"
+              "es and extensions. Please open\n     issues as needed. If Yo"
+              "u contribute a feature, needs to be tests and\n     document"
+              "ation.\n\n\n     ## License\n\n     [LGPL-3.0](https://choos"
+              "ealicense.com/licenses/lgpl-3.0/)\n\n [a]: https://common-li"
+              "sp.net/project/asdf/asdf.html#Configuring-ASDF-to-find-your-"
+              "systems\n  #+end_src\n** LICENS"
+              "E\n   I am a huge supporter of [[https://en.wikipedia.org/wi"
+              "ki/Free_software][Free Software]], and as such generally use"
+              "\n   licenses to support that stance.\n\n   I want to avoid "
+              "my code being locked away into something someone\n   else is"
+              "doing, but I also want to allow others to benefit from my\n "
+              "work without obligation on their part to subscribe to my bel"
+              "iefs. I\n   use the [[https://www.gnu.org/licenses/lgpl-3.0."
+              "en.html][GNU Lesser General Public License]] for most of my "
+              "work\n   because of this. However, if You want to debate lic"
+              "enses, I am open\n   to a casual, friendly discussion.\n\n\n"
+              "#+begin_src text :tangle \"LICENSE\" :eval never\n          "
+              "GNU LESSER GENERAL PUBLIC LICENSE\n                         "
+              "Version 3, 29 June 2007\n\n      Copyright (C) 2007 Free Sof"
+              "tware Foundation, Inc. <https://fsf.org/>\n      Everyone is"
+              "permitted to copy and distribute verbatim copies\n      of t"
+              "his license document, but changing it is not allowed.\n\n\n "
+              "This version of the GNU Lesser General Public License incorp"
+              "orates\n     the terms and conditions of version 3 of the GN"
+              "U General Public\n     License, supplemented by the addition"
+              "al permissions listed below.\n\n       0. Additional Definit"
+              "ions.\n\n       As used herein, \"this License\" refers to v"
+              "ersion 3 of the GNU Lesser\n     General Public License, and"
+              "the \"GNU GPL\" refers to version 3 of the GNU\n     General"
+              "Public License.\n\n       \"The Library\" refers to a covere"
+              "d work governed by this License,\n     other than an Applica"
+              "tion or a Combined Work as defined below.\n\n       An \"App"
+              "lication\" is any work that makes use of an interface provid"
+              "ed\n     by the Library, but which is not otherwise based on"
+              "the Library.\n     Defining a subclass of a class defined by"
+              "the Library is deemed a mode\n     of using an interface pro"
+              "vided by the Library.\n\n       A \"Combined Work\" is a wor"
+              "k produced by combining or linking an\n     Application with"
+              "the Library.  The particular version of the Library\n     wi"
+              "th which the Combined Work was made is also called the \"Lin"
+              "ked\n     Version\".\n\n       The \"Minimal Corresponding S"
+              "ource\" for a Combined Work means the\n     Corresponding So"
+              "urce for the Combined Work, excluding any source code\n     "
+              "for portions of the Combined Work that, considered in isolat"
+              "ion, are\n     based on the Application, and not on the Link"
+              "ed Version.\n\n       The \"Corresponding Application Code\""
+              "for a Combined Work means the\n     object code and/or sourc"
+              "e code for the Application, including any data\n     and uti"
+              "lity programs needed for reproducing the Combined Work from "
+              "the\n     Application, but excluding the System Libraries of"
+              "the Combined Work.\n\n       1. Exception to Section 3 of th"
+              "e GNU GPL.\n\n       You may convey a covered work under sec"
+              "tions 3 and 4 of this License\n     without being bound by s"
+              "ection 3 of the GNU GPL.\n\n       2. Conveying Modified Ver"
+              "sions.\n\n       If you modify a copy of the Library, and, i"
+              "n your modifications, a\n     facility refers to a function "
+              "or data to be supplied by an Application\n     that uses the"
+              "facility (other than as an argument passed when the\n     fa"
+              "cility is invoked), then you may convey a copy of the modifi"
+              "ed\n     version:\n\n        a) under this License, provided"
+              "that you make a good faith effort to\n        ensure that, i"
+              "n the event an Application does not supply the\n        func"
+              "tion or data, the facility still operates, and performs\n   "
+              "whatever part of its purpose remains meaningful, or\n\n     "
+              "b) under the GNU GPL, with none of the additional permission"
+              "s of\n        this License applicable to that copy.\n\n     "
+              "3. Object Code Incorporating Material from Library Header Fi"
+              "les.\n\n       The object code form of an Application may in"
+              "corporate material from\n     a header file that is part of "
+              "the Library.  You may convey such object\n     code under te"
+              "rms of your choice, provided that, if the incorporated\n    "
+              "material is not limited to numerical parameters, data struct"
+              "ure\n     layouts and accessors, or small macros, inline fun"
+              "ctions and templates\n     (ten or fewer lines in length), y"
+              "ou do both of the following:\n\n        a) Give prominent no"
+              "tice with each copy of the object code that the\n        Lib"
+              "rary is used in it and that the Library and its use are\n   "
+              "covered by this License.\n\n        b) Accompany the object "
+              "code with a copy of the GNU GPL and this license\n        do"
+              "cument.\n\n       4. Combined Works.\n\n       You may conve"
+              "y a Combined Work under terms of your choice that,\n     tak"
+              "en together, effectively do not restrict modification of the"
+              "\n     portions of the Library contained in the Combined Wor"
+              "k and reverse\n     engineering for debugging such modificat"
+              "ions, if you also do each of\n     the following:\n\n       "
+              "a) Give prominent notice with each copy of the Combined Work"
+              "that\n        the Library is used in it and that the Library"
+              "and its use are\n        covered by this License.\n\n       "
+              "b) Accompany the Combined Work with a copy of the GNU GPL an"
+              "d this license\n        document.\n\n        c) For a Combin"
+              "ed Work that displays copyright notices during\n        exec"
+              "ution, include the copyright notice for the Library among\n "
+              "these notices, as well as a reference directing the user to "
+              "the\n        copies of the GNU GPL and this license document"
+              ".\n\n        d) Do one of the following:\n\n            0) C"
+              "onvey the Minimal Corresponding Source under the terms of th"
+              "is\n            License, and the Corresponding Application C"
+              "ode in a form\n            suitable for, and under terms tha"
+              "t permit, the user to\n            recombine or relink the A"
+              "pplication with a modified version of\n            the Linke"
+              "d Version to produce a modified Combined Work, in the\n     "
+              "manner specified by section 6 of the GNU GPL for conveying\n"
+              "Corresponding Source.\n\n            1) Use a suitable share"
+              "d library mechanism for linking with the\n            Librar"
+              "y.  A suitable mechanism is one that (a) uses at run time\n "
+              "a copy of the Library already present on the user's computer"
+              "\n            system, and (b) will operate properly with a m"
+              "odified version\n            of the Library that is interfac"
+              "e-compatible with the Linked\n            Version.\n\n      "
+              "e) Provide Installation Information, but only if you would o"
+              "therwise\n        be required to provide such information un"
+              "der section 6 of the\n        GNU GPL, and only to the exten"
+              "t that such information is\n        necessary to install and"
+              "execute a modified version of the\n        Combined Work pro"
+              "duced by recombining or relinking the\n        Application w"
+              "ith a modified version of the Linked Version. (If\n        y"
+              "ou use option 4d0, the Installation Information must accompa"
+              "ny\n        the Minimal Corresponding Source and Correspondi"
+              "ng Application\n        Code. If you use option 4d1, you mus"
+              "t provide the Installation\n        Information in the manne"
+              "r specified by section 6 of the GNU GPL\n        for conveyi"
+              "ng Corresponding Source.)\n\n       5. Combined Libraries.\n"
+              "\n       You may place library facilities that are a work ba"
+              "sed on the\n     Library side by side in a single library to"
+              "gether with other library\n     facilities that are not Appl"
+              "ications and are not covered by this\n     License, and conv"
+              "ey such a combined library under terms of your\n     choice,"
+              "if you do both of the following:\n\n        a) Accompany the"
+              "combined library with a copy of the same work based\n       "
+              "on the Library, uncombined with any other library facilities"
+              ",\n        conveyed under the terms of this License.\n\n    "
+              "b) Give prominent notice with the combined library that part"
+              "of it\n        is a work based on the Library, and explainin"
+              "g where to find the\n        accompanying uncombined form of"
+              "the same work.\n\n       6. Revised Versions of the GNU Less"
+              "er General Public License.\n\n       The Free Software Found"
+              "ation may publish revised and/or new versions\n     of the G"
+              "NU Lesser General Public License from time to time. Such new"
+              "\n     versions will be similar in spirit to the present ver"
+              "sion, but may\n     differ in detail to address new problems"
+              "or concerns.\n\n       Each version is given a distinguishin"
+              "g version number. If the\n     Library as you received it sp"
+              "ecifies that a certain numbered version\n     of the GNU Les"
+              "ser General Public License \"or any later version\"\n     ap"
+              "plies to it, you have the option of following the terms and"
+              "\n     conditions either of that published version or of any"
+              "later version\n     published by the Free Software Foundatio"
+              "n. If the Library as you\n     received it does not specify "
+              "a version number of the GNU Lesser\n     General Public Lice"
+              "nse, you may choose any version of the GNU Lesser\n     Gene"
+              "ral Public License ever published by the Free Software Found"
+              "ation.\n\n       If the Library as you received it specifies"
+              "that a proxy can decide\n     whether future versions of the"
+              "GNU Lesser General Public License shall\n     apply, that pr"
+              "oxy's public statement of acceptance of any version is\n    "
+              "permanent authorization for you to choose that version for t"
+              "he\n     Library.\n\n   #+end_src\n** Changelog\n   All upda"
+              "tes to this repository should be logged here. I follow [[htt"
+              "ps://keepachangelog.com/][Keep\n   a Changelog]]'s recommend"
+              "ations here, because again, standardization\n   is important"
+              "for outward-facing documentation.\n\n   It's worth noting he"
+              "re that I will keep the links updated to the\n   [[https://s"
+              "r.ht/][Sourcehut]] repository commits, as that is the main p"
+              "lace I will be\n   uploading the source to share.\n   #+begi"
+              "n_src markdown :tangle \"Changelog.md\"\n     # Changelog\n "
+              "All notable changes to this project will be documented in th"
+              "is file.\n\n     The format is based on [Keep a Changelog](h"
+              "ttps://keepachangelog.com/en/1.0.0/),\n     and this project"
+              "adheres to [Semantic Versioning](https://semver.org/spec/v2."
+              "0.0.html).\n\n     ## [Unreleased]\n     ### Added\n        "
+              "-\n     ### Changed\n             -\n     ### Removed\n     "
+              "-\n\n     [Unreleased]: https://git.sr.ht/~yewscion/"
+              project-name "/log\n   #+end_src\n** AUTHORS\n   If You contr"
+              "ibute to this repo, Your information belongs in this\n   fil"
+              "e. I will attempt to ensure this, but if You'd like to simpl"
+              "y\n   include Your information here in any pull requests, I "
+              "am more than\n   happy to accept that.\n\n   #+begin_src tex"
+              "t :tangle \"AUTHORS\"\n     # This is the list of the "
+              project-name " project's significant contributors.\n     #\n "
+              "# This does not necessarily list everyone who has contribute"
+              "d code.\n     # To see the full list of contributors, see th"
+              "e revision history in\n     # source control.\n     Christop"
+              "her Rodriguez <yewscion@gmail.com>\n   #+end_src\n** .gitign"
+              "ore\n   This is an important file for any git repository. I "
+              "generate mine\n   using [[https://www.toptal.com/developers/"
+              "gitignore][gitignore.io]] right now, and add to it as needed"
+              "during work\n   on the project.\n\n   #+begin_src fundamenta"
+              "l :tangle \".gitignore\"\n     # Created by https://www.topt"
+              "al.com/developers/gitignore/api/emacs,linux,commonlisp\n    "
+              "# Edit at https://www.toptal.com/developers/gitignore?templa"
+              "tes=emacs,linux,commonlisp\n\n     ### CommonLisp ###\n     "
+              ",*.FASL\n     ,*.fasl\n     ,*.lisp-temp\n     ,*.dfsl\n    "
+              ",*.pfsl\n     ,*.d64fsl\n     ,*.p64fsl\n     ,*.lx64fsl\n  "
+              ",*.lx32fsl\n     ,*.dx64fsl\n     ,*.dx32fsl\n     ,*.fx64fs"
+              "l\n     ,*.fx32fsl\n     ,*.sx64fsl\n     ,*.sx32fsl\n     ,"
+              "*.wx64fsl\n     ,*.wx32fsl\n\n     ### Emacs ###\n     # -*-"
+              "mode: gitignore; -*-\n     ,*~\n     \\#*\\#\n     /.emacs.d"
+              "esktop\n     /.emacs.desktop.lock\n     ,*.elc\n     auto-sa"
+              "ve-list\n     tramp\n     .\\#*\n\n     # Org-mode\n     .or"
+              "g-id-locations\n     ,*_archive\n\n     # flymake-mode\n    "
+              ",*_flymake.*\n\n     # eshell files\n     /eshell/history\n "
+              "/eshell/lastdir\n\n     # elpa packages\n     /elpa/\n\n    "
+              "# reftex files\n     ,*.rel\n\n     # AUCTeX auto folder\n  "
+              "/auto/\n\n     # cask packages\n     .cask/\n     dist/\n\n "
+              "# Flycheck\n     flycheck_*.el\n\n     # server auth directo"
+              "ry\n     /server/\n\n     # projectiles files\n     .project"
+              "ile\n\n     # directory configuration\n     .dir-locals.el\n"
+              "\n     # network security\n     /network-security.data\n\n\n"
+              "### Linux ###\n\n     # temporary files which can be created"
+              "if a process still has a handle open of a deleted file\n    "
+              ".fuse_hidden*\n\n     # KDE directory preferences\n     .dir"
+              "ectory\n\n     # Linux trash folder which might appear on an"
+              "y partition or disk\n     .Trash-*\n\n     # .nfs files are "
+              "created when an open file is removed but is still being acce"
+              "ssed\n     .nfs*\n\n     # End of https://www.toptal.com/dev"
+              "elopers/gitignore/api/emacs,linux,commonlisp\n\n\n   #+end_s"
+              "rc\n* Language Project Files\n  These files vary based on th"
+              "e programming languages used in a\n  project. Otherwise, bas"
+              "ically the same as above: Files that need to\n  exist for th"
+              "e project, but don't include code outside of defining\n  the"
+              "project in some abstract way.\n** ASDF System Definition\n  "
+              "Since we're using Common Lisp, we are going to use the [[htt"
+              "ps://common-lisp.net/project/asdf/][ASDF Build\n   System]]."
+              "This file (which should have the same name as this repo\n   "
+              "plus the =.asd= extension) makes that happen.\n\n   #+begin_"
+              "src lisp :tangle " project-name ".asd :eval never\n     (def"
+              "system :" project-name "\n       :depends-on (:command-line-"
+              "arguments)\n       :serial t\n       :components ((:file \"s"
+              "rc/package\")\n                    (:file \"src/"
+              project-name "\")))\n   #+end_src\n** Package Definition\n   "
+              "Since we're using Common Lisp, it's important to also define"
+              "the\n   package we are building. This file builds each packa"
+              "ge in this\n   repo, but doesn't define any of the actual co"
+              "de in the package.\n\n   #+begin_src lisp :tangle src/packag"
+              "e.lisp\n     (defpackage " project-name "\n       (:use cl)"
+              "\n       (:export :hello))\n   #+end_src\n\n* Code\n  Finall"
+              "y, we've gotten to the actual code!\n\n  Well, almost, anywa"
+              "y. First, let's declare the top of each file as\n  defining "
+              "a specific package, and add any top-of-the-file comments. I"
+              "\n  refer to these blocks as the /preamble/ of each file.\n"
+              "\n** =" project-name ".lisp= Preamble.\n   Honestly nothing "
+              "special here. Just declaring the package and a\n   /hello wo"
+              "rld/ function.\n\n   #+begin_src lisp :tangle src/"
+              project-name " :results silent\n     (in-package "
+              project-name ")\n     (defun hello ()\n       \"Say Hello to "
+              "the World. A Starting Point.\"\n       (princ \"Hello World!"
+              "\"))\n   #+end_src\n\n** Tests\n   It's important to me to u"
+              "se [[https://en.wikipedia.org/wiki/Unit_testing][Unit Testin"
+              "g]] throughout my development\n   process, oftentimes before"
+              "I actually implement a specific\n   feature. I guess I subsc"
+              "ribe to the notion of [[https://en.wikipedia.org/wiki/Test-d"
+              "riven_development][TDD]], whether through\n   habit or prefe"
+              "rence.\n\n   Anyway, all related files will live under =test"
+              "/=, and the main\n   file should be called =maintests.lisp=."
+              "\n\n   We also require the packages defined above, as well a"
+              "s the [[https://github.com/fukamachi/prove][Prove]]\n   test"
+              "ing framework.\n\n   #+begin_src lisp :tangle test/maintests"
+              ".lisp :results silent :package cl-user\n     (in-package cl-"
+              "user)\n     (require \"" project-name "\")\n     (require \""
+              "prove\")\n   #+end_src\n\n   Once everything is loaded, we n"
+              "eed to turn off the colors so that\n   [[https://orgmode.org"
+              "/worg/org-contrib/babel/][Org Babel]] isn't littered with co"
+              "lor codes. I debated removing this\n   from the export (sinc"
+              "e it isn't in the tangled source files), but I\n   want to d"
+              "ocument my full process, so here it is.\n\n   #+begin_src li"
+              "sp :results silent\n     (setq prove:*enable-colors* nil)\n "
+              "#+end_src\n\n   Then we move on to the actual tests.\n\n   #"
+              "+begin_src lisp :tangle test/maintests.lisp :results output"
+              "\n     (prove:plan 1)\n     (prove:subtest \"Basic Checks\""
+              "\n     (prove:is-print (" project-name ":hello) \"Hello Worl"
+              "d!\" \"hello\"))\n\n     (prove:finalize)\n   #+end_src\n\n*"
+              "Links                                                       "
+              ":noexport:\n** Export Docs\n   #+begin_src elisp\n     (org-"
+              "texinfo-export-to-info)\n     (org-man-export-to-man)\n     "
+              "(org-html-export-to-html)\n     (org-ascii-export-to-ascii)"
+              "\n     (org-latex-export-to-pdf)\n   #+end_src")))))
+    #+end_src
+** Org Mode
+   I am as much an Org-Mode devotee as I am an Emacs User, so this
+   section has a lot in it as well.
+*** Environment Check
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;; Org Mode Config
+
+      ;;; Ensure Packages are Loaded
+      (require 'org-chef)
+
+      ;;; Local Lisp
+      (load "~/.emacs.d/lisp/ob-markdown.el")
+    #+end_src
+*** Image Display
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (add-hook 'org-mode-hook 'org-display-inline-images)
+    #+end_src
+*** Agenda Config
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Org Agenda
+      (setq org-agenda-files
+            (file-expand-wildcards "~/Documents/org/*.org"))
+    #+end_src
+*** Tweaks / Journal / TODO
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Customization
+      (setq org-log-into-drawer t
+            org-return-follows-link t
+            org-startup-folded t
+            org-image-actual-width 590
+            org-capture-before-finalize-hook nil
+            org-contacts-files '("~/Documents/org/contacts.gpg")
+            org-export-backends '(ascii beamer html icalendar
+                                        latex man md odt org
+                                        texinfo deck rss s5)
+            org-image-actual-width 590
+            org-refile-targets '((org-agenda-files :maxlevel . 3)
+                                 (nil :maxlevel . 9)
+                                 (org-buffer-list :maxlevel . 3))
+            org-time-stamp-custom-formats '("%F" . "%F %H:%MZ%z")
+      ;;;; Journal
+            org-journal-dir "~/Documents/org/journal/"
+            org-journal-encrypt-journal t
+      ;;; TODO
+            org-todo-keywords
+            '((sequence "TODO(t!)" "|" "DONE(d@)")
+              (sequence "TT(T!)" "ACTION ITEM(A!)" "|" "FIXED(F@)")
+              (sequence "UNPLANNED(u!)" "PLANNED(p!)" "IN PROGRESS(i!)" "|"
+                        "DELAYED(D@)" "COMPLETE(c@)")
+              (sequence "UNSUBMITTED(U!)" "DRAFT(f!)" "PENDING APPROVAL(P!)"
+                        "REWORK REQUIRED(r@)" "SCHEDULED(s!)" "|"
+                        "DISCARDED(I@)" "SUCCESSFUL(S!)" "OFF-SCRIPT(o@)"
+                        "ABORTED(a@)")
+              (sequence "RESEARCHING(r@)" "ONGOING(O!)"
+                        "AWAITING RESPONSE(w@)" "|"
+                        "HANDED OFF(h@)" "CANCELED(C@)")))
+    #+end_src
+*** Capture Template Functions
+**** Contacts                                                      :refactor:
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       ;;; Capture
+       (defun my-org-capture:contacts-template ()
+           "Org Capture Template for Contact Creation." ; Needs Rewrite
+           "* %^{Given Name}
+       %^{Middle-Name}p%^{Work-Email}p%^{Personal-Email}p"
+       "%^{Main-Phone}p%^{Alt-Phone}p%^{Company}p"
+       "%^{Department}p%^{Office}p%^{Title}p"
+       "%^{Handle}p%^{Manager}p%^{Assistant}p"
+       "%^{Birthday}p%^{Street-Address}p%^{Street-Address-Line-2}p"
+       "%^{City-Address}p%^{State-Address}p%^{Zip-Address}p"
+       "%^{Zip-Plus-4-Address}p%^{Country}p
+       %^{Notes}")
+     #+end_src
+**** Groceries
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (defun my-org-capture:grocery-template ()
+         "Org Capture Template for Grocery List Creation."
+         "**** %<%Y-W%W>
+            :LOGBOOK:
+            # NOTE: Remember to add clock out time after --!
+            #       (C-u M-x org-ina RET RET M-x org-cl-may)
+            CLOCK: %U--
+            :END:
+       ,***** Baking%?
+       ,***** Dairy
+       ,***** Frozen
+       ,***** Grains
+       ,***** Junk
+       ,***** Produce
+       ,***** Protein
+       ,***** Sundries")
+     #+end_src
+**** Daily Health Check In
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (defun my-org-capture:health-template ()
+         "Org Capture Template for Grocery List Creation."
+         "|%u|%^{Anxiety (1-10)}|%^{Depression (1-10)}|"
+         "%^{Headache: (0-5)}|%^{Sick: 0-1}")
+     #+end_src
+**** Recipe
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (defun my-org-capture:recipe-template ()
+         "Org Capture Template for Recipe Creation."
+         "* %^{Recipe title: }
+         :PROPERTIES:
+         :source-url:
+         :servings:
+         :prep-time:
+         :cook-time:
+         :ready-in:
+         :END:
+       ,** Ingredients
+          %?
+       ,** Directions
+       ")
+     #+end_src
+**** Quick Note
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (defun my-org-capture:note-template ()
+         "Org Capture Template for Note Creation."
+         "* %U %^{Short Description of Note|Quick Note} %^G
+       %^{Enter Note}
+       %?")
+     #+end_src
+**** Link Capture
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (defun my-org-capture:link-template ()
+         "Org Capture Template for Link Capture from Clipboard."
+         "** %^{Identifier|Bookmark} %^G
+          %(org-cliplink-capture)
+          %?")
+     #+end_src
+*** Capture Templates
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (setq org-capture-templates
+            '(("r" "Recipes (using org-chef)")
+              ("ru" "Import Recipe from URL" entry
+               (file "~/Documents/org/recipes.org")
+               "%(org-chef-get-recipe-from-url)"
+               :empty-lines 1)
+              ("rm" "Import Recipe Manually" entry
+               (file "~/Documents/org/recipes.org")
+               (function my-org-capture:recipe-template))
+              ("n" "Notes, Links, and Contacts")
+              ("nn" "Note" entry
+               (file "~/Documents/org/inbox.org")
+               (function my-org-capture:note-template))
+              ("nc" "Contact" entry
+               (file "~/Documents/org/contacts.org")
+               (function my-org-capture:contacts-template))
+              ("nl" "Link from Clipboard" entry
+               (file+headline "~/Documents/org/bookmarks.org"
+                              "Inbox")
+               (function my-org-capture:link-template))
+              ("d" "Data Aggregation")
+              ("dh" "Daily Health Check In" table-line
+               (file+headline "~/Documents/org/metrics.org"
+                              "Health")
+               (function my-org-capture:health-template) :unnarrowed t)
+              ("c" "Chores")
+              ("cg" "Grocery Shopping List" entry
+               (file+headline "~/Documents/org/chores.org"
+                              "Make Shopping List")
+               (function my-org-capture:grocery-template))))
+    #+end_src
+*** Babel
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Babel
+      (org-babel-do-load-languages
+       'org-babel-load-languages
+       '((abc . t)
+         (ammonite . t)
+         (C . t)
+         (clojure . t)
+         (browser . t)
+         (dot . t)
+         (elixir . t)
+         (elm . t)
+         (elvish . t)
+         (emacs-lisp . t)
+         (haskell . t)
+         (hledger . t)
+         (http . t)
+         (js . t)
+         (julia . t)
+         (kotlin . t)
+         (lilypond . t)
+         (lisp . t)
+         (lua . t)
+         (makefile . t)
+         (markdown . t)
+         (mermaid . t)
+         (nim . t)
+         (org . t)
+         (perl . t)
+         (prolog . t)
+         (python . t)
+         (raku . t)
+         (ruby . t)
+         (rust . t)
+         (scheme . t)
+         (shell . t)
+         (shen . t)
+         (sql . t)
+         (sqlite . t)
+         ))
+      (setq org-confirm-babel-evaluate nil)
+      (add-hook 'org-babel-after-execute-hook 'org-display-inline-images)
+
+      ;;;; Babel for Scala
+      (setq ob-ammonite-prompt-str "scala>") ;; This is the same value as
+                                             ;; repl.prompt(), defined in
+                                             ;; ~/.ammonite/predef.sc
+                                             ;; without trailing
+                                             ;; whitespace. E.g.
+                                             ;; repl.prompt() = "scala> "
+                                             ;; would give You "scala>"
+                                             ;; here.
+
+      ;;;; Babel for Raku
+      (setq org-babel-raku-command "rakudo")
+    #+end_src
+*** Projects                                                       :refactor:
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Projects
+
+      ;;;; Blog (Inactive)
+      (defun blog-html-preamble ()
+        (concat "TEST PREAMBLE"))
+      (setq org-publish-project-alist
+            '(
+              ("blog-content"
+               :base-directory "~/Documents/blog"
+               :base-extension "org"
+               :recursive t
+               :publishing-function org-html-publish-to-html
+               :html-preamble blog-html-preamble
+               :publishing-directory "~/Documents/output/blog")
+              ("blog-static"
+               :base-directory "~/Documents/blog/static"
+               :base-extension "css\\|png"
+               :publishing-directory "~/Documents/output/blog/static"
+               :recursive t
+               :publishing-function org-publish-attachment)
+              ("blog"
+               :components ("blog-content" "blog-static"))
+              ("info"
+               :base-directory "~/Documents/info/"
+               :base-extension "org"
+               :recursive nil
+               :publishing-function org-texinfo-publish-to-info
+               :publishing-directory "~/Documents/output/info")
+              ))
+
+    #+end_src
+** UI
+*** Check if We're in a GUI
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Set Up UI
+      (when (display-graphic-p)
+        (progn (menu-bar-mode 0)
+               (tool-bar-mode 0)
+               (scroll-bar-mode 0)
+               ;; Emoji Support
+               (setq use-default-font-for-symbols nil
+                     emojify-display-style 'unicode
+                     emojify-emoji-styles '(github unicode))
+               (defun my-emoji-fonts ()
+                 (set-fontset-font t 'unicode
+                                   (face-attribute 'default :family))
+                 (set-fontset-font t '(#x2300 . #x27e7)
+                                   (font-spec :family "Emoji One"))
+                 (set-fontset-font t '(#x27F0 . #x1FAFF)
+                                   (font-spec :family "Emoji One"))
+                 (set-fontset-font t 'unicode
+                                   "Unifont, Upper" nil 'append))
+               (my-emoji-fonts)))
+    #+end_src
+*** Enable Some Useful Modes
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (column-number-mode 1)
+      (display-time-mode 1)
+      (guru-global-mode 1)
+      (global-disable-mouse-mode)
+    #+end_src
+*** Change Some Defaults
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (setq inhibit-startup-screen t
+            large-file-warning-threshold 100000000
+            undo-limit 16000000
+            garbage-collection-messages t
+            initial-scratch-message nil
+            display-time-24hr-format t
+            nrepl-sync-request-timeout nil
+            mark-ring-max most-positive-fixnum
+            use-file-dialog nil
+            use-dialog-box nil
+            whitespace-line-column nil)
+    #+end_src
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (setq-default indent-tabs-mode nil
+                    show-trailing-whitespace t)
+    #+end_src
+*** Set Code Fonts
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (set-face-attribute 'fixed-pitch nil :font "FreeMono")
+      (prefer-coding-system 'utf-8)
+    #+end_src
+*** Enable Commands I Understand
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Enabled Commands
+      (put 'downcase-region 'disabled nil)
+      (put 'upcase-region 'disabled nil)
+      (put 'capitalize-region 'disabled nil)
+      (put 'narrow-to-region 'disabled nil)
+    #+end_src
+*** Set Up Modeline and Headerline
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Header Line and Mode Line
+      (add-hook 'buffer-list-update-hook
+                  'cdr:display-header-line)
+      (add-hook 'buffer-list-update-hook
+                'cdr:display-mode-line)
+    #+end_src
+*** Finish Setting Up EMMS for Headerline
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Header Line Format
+      (setq emms-mode-line-cycle-current-title-function
+            'cdr:emms-describe-track)
+    #+end_src
+** Keys
+*** Prefix Maps
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;; Maps
+
+      ;;; Prefixes
+
+      (define-prefix-command 'template-map)
+      (define-prefix-command 'subprocess-map)
+      (define-prefix-command 'process-buffer-map)
+    #+end_src
+**** The Template Map
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+
+      ;;; Template Map
+
+      (define-key template-map (kbd "s") #'orgy-setup-cm-step)
+      (define-key template-map (kbd "h") #'hog-skeleton)
+      (define-key template-map (kbd "t") #'teammeeting-skeleton)
+      (define-key template-map (kbd "w") #'orgy-kill-cm-for-hog)
+    #+end_src
+**** The Subprocess Map
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+
+      ;;; Subprocess Map
+
+      (define-key subprocess-map (kbd "s") #'slime)
+      (define-key subprocess-map (kbd "c") #'cider)
+      (define-key subprocess-map (kbd "r") #'inf-ruby)
+      (define-key subprocess-map (kbd "e") #'eshell)
+    #+end_src
+**** The Process Buffer Map
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+
+      ;;; CM Map
+
+      (define-key process-buffer-map (kbd "C-w") #'org-copy-src-block)
+      (define-key process-buffer-map (kbd "C-n") #'orgy-cm-step-next)
+      (define-key process-buffer-map (kbd "C-h") #'cdr:orgy-pull-task-clock-to-hog)
+      (define-key process-buffer-map (kbd "w") #'whitespace-report)
+      (define-key process-buffer-map (kbd "c") #'whitespace-cleanup)
+    #+end_src
+*** Keybindings
+**** Function Keys (Major Modes)
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;; Keys
+
+      ;;; Function (Major Modes)
+
+      ;(global-set-key (kbd "<f1>") nil) ; Help prefix
+      ;(global-set-key (kbd "<f2>") nil) ; 2 Column prefix
+      ;(global-set-key (kbd "<f3>") nil) ; Define Macros
+      ;(global-set-key (kbd "<f4>") nil) ; Run Macro
+      (global-set-key (kbd "<f5>") 'emms)
+      (global-set-key (kbd "<f6>") 'telega)
+      (global-set-key (kbd "<f7>") 'mastodon)
+      (global-set-key (kbd "<f8>") 'elfeed)
+      (global-set-key (kbd "<f9>") 'org-agenda)
+      ; (global-set-key (kbd "<f10>") nil) ; GUI Menu Key
+      ; (global-set-key (kbd "<f11>") nil) ; GUI Fullscreen
+      (global-set-key (kbd "<f12>") 'forms-mode)
+    #+end_src
+**** C-Function (Maps)
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Ctrl Function (Maps)
+
+      ;; (global-set-key (kbd "C-<f1>") nil)
+      ;; (global-set-key (kbd "C-<f2>") nil)
+      (global-set-key (kbd "C-<f3>") 'process-buffer-map)
+      (global-set-key (kbd "C-<f4>") 'subprocess-map)
+      (global-set-key (kbd "C-<f5>") 'template-map)
+      ;; (global-set-key (kbd "C-<f6>") nil)
+      ;; (global-set-key (kbd "C-<f7>") nil)
+      ;; (global-set-key (kbd "C-<f8>") nil)
+      ;; (global-set-key (kbd "C-<f9>") nil)
+      ;; (global-set-key (kbd "C-<f10>") nil)
+      ;; (global-set-key (kbd "C-<f11>") nil)
+      ;; (global-set-key (kbd "C-<f12>") nil)
+    #+end_src
+**** M-Function (Misc)
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Meta Function (Misc)
+
+      ;; (global-set-key (kbd "M-<f1>") nil)
+      ;; (global-set-key (kbd "M-<f2>") nil)
+      ;; (global-set-key (kbd "M-<f3>") nil)
+      ;; (global-set-key (kbd "M-<f4>") nil) ; Close Program
+      ;; (global-set-key (kbd "M-<f5>") nil)
+      ;; (global-set-key (kbd "M-<f6>") nil)
+      ;; (global-set-key (kbd "M-<f7>") nil)
+      ;; (global-set-key (kbd "M-<f8>") nil)
+      ;; (global-set-key (kbd "M-<f9>") nil)
+      ;; (global-set-key (kbd "M-<f10>") nil)
+      ;; (global-set-key (kbd "M-<f11>") nil)
+      ;; (global-set-key (kbd "M-<f12>") nil)
+    #+end_src
+**** Super Key
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Super (Minor Modes)
+
+      ;; (global-set-key (kbd "s-q") nil) ; GNOME ?
+      (global-set-key (kbd "s-w") 'whitespace-mode)
+      (global-set-key (kbd "s-e") 'show-paren-mode)
+      (global-set-key (kbd "s-r") 'display-line-numbers-mode)
+      ;; (global-set-key (kbd "s-t") nil)
+      ;; (global-set-key (kbd "s-y") nil)
+      ;; (global-set-key (kbd "s-u") nil)
+      ;; (global-set-key (kbd "s-i") nil)
+      ;; (global-set-key (kbd "s-o") nil) ; GNOME ?
+      ;; (global-set-key (kbd "s-p") nil) ; GNOME ?
+      ;; (global-set-key (kbd "s-a") nil) ; GNOME Application Menu
+      ;; (global-set-key (kbd "s-s") nil) ; GNOME Switch Window Menu
+      ;; (global-set-key (kbd "s-d") nil) ; GNOME Show Desktop
+      (global-set-key (kbd "s-f") 'display-fill-column-indicator-mode)
+      ;; (global-set-key (kbd "s-g") nil)
+      ;; (global-set-key (kbd "s-h") nil) ; GNOME ?
+      ;; (global-set-key (kbd "s-j") nil)
+      ;; (global-set-key (kbd "s-k") nil)
+      ;; (global-set-key (kbd "s-l") nil) ; GNOME Lock Screen
+      ;; (global-set-key (kbd "s-z") nil)
+      ;; (global-set-key (kbd "s-x") nil)
+      ;; (global-set-key (kbd "s-c") nil)
+      ;; (global-set-key (kbd "s-v") nil) ; GNOME Show Notifications
+      ;; (global-set-key (kbd "s-b") nil)
+      ;; (global-set-key (kbd "s-n") nil) ; GNOME ?
+      ;; (global-set-key (kbd "s-m") nil) ; GNOME ?
+      ;; (global-set-key (kbd "s-") nil)
+      ;; (global-set-key (kbd "s-q") nil)
+      ;; (global-set-key (kbd "s-q") nil)
+      ;; (global-set-key (kbd "s-q") nil)
+      ;; (global-set-key (kbd "s-q") nil)
+      ;; (global-set-key (kbd "s-q") nil)
+    #+end_src
+**** Org Keybinding That I Want Globally
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      ;;; Org Keybindings Made Global
+      (global-set-key (kbd "C-c l") 'org-store-link)
+      (global-set-key (kbd "C-c a") 'org-agenda)
+      (global-set-key (kbd "C-c c") 'org-capture)
+    #+end_src
+** Startup File
+   This is the file which will show each time Emacs is started without
+   an argument. I usually set this to my =main.org= file.
+
+   #+begin_src elisp :tangle ~/.emacs.d/init.el
+     (find-file "~/Documents/org/main.org")
+   #+end_src
+* =~/.config/stumpwm/config=
+I am going to keep my dotfiles in a literate programming file as well.
+
+#+begin_src lisp :tangle ~/.config/stumpwm/config :mkdirp yes
+  ;; -*-lisp-*-
+  ;;
+  ;; Here is a sample .stumpwmrc file
+
+  (in-package :stumpwm)
+
+  ;; change the prefix key to something else
+  (set-prefix-key (kbd "C-t"))
+
+  ;; prompt the user for an interactive command. The first arg is an
+  ;; optional initial contents.
+  (defcommand colon1 (&optional (initial "")) (:rest)
+    (let ((cmd (read-one-line (current-screen) ": " :initial-input initial)))
+      (when cmd
+        (eval-command cmd t))))
+
+  ;; Read some doc
+  (define-key *root-map* (kbd "d") "exec gv")
+  ;; Browse somewhere
+  (define-key *root-map* (kbd "b") "colon1 exec firefox http://www.")
+  ;; Ssh somewhere
+  (define-key *root-map* (kbd "C-s") "colon1 exec kitty ssh ")
+  ;; Lock screen
+  (define-key *root-map* (kbd "C-l") "exec slock")
+
+  ;; Web jump (works for DuckDuckGo and Imdb)
+  (defmacro make-web-jump (name prefix)
+    `(defcommand ,(intern name) (search) ((:rest ,(concatenate 'string name " search: ")))
+      (nsubstitute #\+ #\Space search)
+      (run-shell-command (concatenate 'string ,prefix search))))
+
+  (make-web-jump "duckduckgo" "firefox https://duckduckgo.com/?q=")
+  (make-web-jump "imdb" "firefox http://www.imdb.com/find?q=")
+
+  ;; C-t M-s is a terrble binding, but you get the idea.
+  (define-key *root-map* (kbd "M-s") "duckduckgo")
+  (define-key *root-map* (kbd "i") "imdb")
+
+  ;; Message window font
+  (set-font "-xos4-terminus-medium-r-normal--14-140-72-72-c-80-iso8859-15")
+
+  ;;; Define window placement policy...
+
+  ;; Clear rules
+  (clear-window-placement-rules)
+
+  ;; Last rule to match takes precedence!
+  ;; TIP: if the argument to :title or :role begins with an ellipsis, a substring
+  ;; match is performed.
+  ;; TIP: if the :create flag is set then a missing group will be created and
+  ;; restored from *data-dir*/create file.
+  ;; TIP: if the :restore flag is set then group dump is restored even for an
+  ;; existing group using *data-dir*/restore file.
+  (define-frame-preference "Default"
+    ;; frame raise lock (lock AND raise == jumpto)
+    (0 t nil :class "Konqueror" :role "...konqueror-mainwindow")
+    (1 t nil :class "XTerm"))
+
+  (define-frame-preference "Ardour"
+    (0 t   t   :instance "ardour_editor" :type :normal)
+    (0 t   t   :title "Ardour - Session Control")
+    (0 nil nil :class "XTerm")
+    (1 t   nil :type :normal)
+    (1 t   t   :instance "ardour_mixer")
+    (2 t   t   :instance "jvmetro")
+    (1 t   t   :instance "qjackctl")
+    (3 t   t   :instance "qjackctl" :role "qjackctlMainForm"))
+
+  (define-frame-preference "Shareland"
+    (0 t   nil :class "XTerm")
+    (1 nil t   :class "aMule"))
+
+  (define-frame-preference "Emacs"
+    (1 t t :restore "emacs-editing-dump" :title "...xdvi")
+    (0 t t :create "emacs-dump" :class "Emacs"))
+#+end_src
+* =~/.mednafen/mednafen.cfg=
+  #+begin_src conf :tangle ~/.mednafen/mednafen.cfg
+    # Insert Here
+  #+end_src
+* =~/.sbclrc=
+  #+begin_src lisp :tangle ~/.sbclrc
+    ;;; The following lines added by ql:add-to-init-file:
+    #-quicklisp
+    (let ((quicklisp-init (merge-pathnames ".quicklisp/setup.lisp"
+                                           (user-homedir-pathname))))
+      (when (probe-file quicklisp-init)
+        (load quicklisp-init)))
+  #+end_src
+* =~/.config/common-lisp/source-registry.conf.d/main.conf=
+  #+begin_src lisp :tangle ~/.config/common-lisp/source-registry.conf.d/main.conf
+    (:tree "~/Documents/")
+  #+end_src
+* =~/.config/mc/ini=
+  #+begin_src conf :tangle ~/.config/mc/ini
+    [Midnight-Commander]
+    verbose=true
+    shell_patterns=true
+    auto_save_setup=true
+    preallocate_space=false
+    auto_menu=false
+    use_internal_view=true
+    use_internal_edit=false
+    clear_before_exec=true
+    confirm_delete=true
+    confirm_overwrite=true
+    confirm_execute=false
+    confirm_history_cleanup=true
+    confirm_exit=false
+    confirm_directory_hotlist_delete=false
+    confirm_view_dir=false
+    safe_delete=false
+    safe_overwrite=false
+    use_8th_bit_as_meta=false
+    mouse_move_pages_viewer=true
+    mouse_close_dialog=false
+    fast_refresh=false
+    drop_menus=false
+    wrap_mode=true
+    old_esc_mode=true
+    cd_symlinks=true
+    show_all_if_ambiguous=false
+    use_file_to_guess_type=true
+    alternate_plus_minus=false
+    only_leading_plus_minus=true
+    show_output_starts_shell=false
+    xtree_mode=false
+    file_op_compute_totals=true
+    classic_progressbar=true
+    use_netrc=true
+    ftpfs_always_use_proxy=false
+    ftpfs_use_passive_connections=true
+    ftpfs_use_passive_connections_over_proxy=false
+    ftpfs_use_unix_list_options=true
+    ftpfs_first_cd_then_ls=true
+    ignore_ftp_chattr_errors=true
+    editor_fill_tabs_with_spaces=false
+    editor_return_does_auto_indent=false
+    editor_backspace_through_tabs=false
+    editor_fake_half_tabs=true
+    editor_option_save_position=true
+    editor_option_auto_para_formatting=false
+    editor_option_typewriter_wrap=false
+    editor_edit_confirm_save=true
+    editor_syntax_highlighting=true
+    editor_persistent_selections=true
+    editor_drop_selection_on_copy=true
+    editor_cursor_beyond_eol=false
+    editor_cursor_after_inserted_block=false
+    editor_visible_tabs=true
+    editor_visible_spaces=true
+    editor_line_state=false
+    editor_simple_statusbar=false
+    editor_check_new_line=false
+    editor_show_right_margin=false
+    editor_group_undo=true
+    editor_state_full_filename=true
+    editor_ask_filename_before_edit=false
+    nice_rotating_dash=true
+    mcview_remember_file_position=false
+    auto_fill_mkdir_name=true
+    copymove_persistent_attr=true
+    pause_after_run=1
+    mouse_repeat_rate=100
+    double_click_speed=250
+    old_esc_mode_timeout=1000000
+    max_dirt_limit=10
+    num_history_items_recorded=60
+    vfs_timeout=60
+    ftpfs_directory_timeout=900
+    ftpfs_retry_seconds=30
+    fish_directory_timeout=900
+    editor_tab_spacing=8
+    editor_word_wrap_line_length=72
+    editor_option_save_mode=0
+    editor_backup_extension=~
+    editor_filesize_threshold=64M
+    editor_stop_format_chars=-+*\\,.;:&>
+    mcview_eof=
+    skin=default
+    
+    [Layout]
+    output_lines=0
+    left_panel_size=119
+    top_panel_size=0
+    message_visible=true
+    keybar_visible=true
+    xterm_title=true
+    command_prompt=true
+    menubar_visible=true
+    free_space=true
+    horizontal_split=false
+    vertical_equal=true
+    horizontal_equal=true
+    
+    [Misc]
+    timeformat_recent=%b %e %H:%M
+    timeformat_old=%b %e  %Y
+    ftp_proxy_host=gate
+    ftpfs_password=anonymous@
+    display_codepage=UTF-8
+    source_codepage=Other_8_bit
+    autodetect_codeset=
+    spell_language=en
+    clipboard_store=
+    clipboard_paste=
+    
+    [Colors]
+    base_color=
+    xterm-256color=
+    color_terminals=
+    
+    [Panels]
+    show_mini_info=true
+    kilobyte_si=false
+    mix_all_files=false
+    show_backups=true
+    show_dot_files=true
+    fast_reload=false
+    fast_reload_msg_shown=false
+    mark_moves_down=true
+    reverse_files_only=true
+    auto_save_setup_panels=false
+    navigate_with_arrows=false
+    panel_scroll_pages=true
+    panel_scroll_center=false
+    mouse_move_pages=true
+    filetype_mode=true
+    permission_mode=false
+    torben_fj_mode=false
+    quick_search_mode=2
+    select_flags=6
+    
+    [Panelize]
+    Find *.orig after patching=find . -name \\*.orig -print
+    Find SUID and SGID programs=find . \\( \\( -perm -04000 -a -perm /011 \\) -o \\( -perm -02000 -a -perm /01 \\) \\) -print
+    Find rejects after patching=find . -name \\*.rej -print
+    Modified git files=git ls-files --modified
+    
+  #+end_src
+* =~/.mikmodrc=
+  #+begin_src conf :tangle ~/.mikmodrc
+    #
+    # -= MikMod 3.2.8 =-
+    # configuration file
+    #
+    
+    # DRIVER = <val>, nth driver for output, default: 0
+    DRIVER = 0
+    
+    # DRV_OPTIONS = "options", the driver options, e.g. "buffer=14,count=16"
+    #                          for the OSS-driver
+    DRV_OPTIONS = ""
+    
+    # STEREO = Yes|No, stereo or mono output, default: stereo
+    STEREO = yes
+    
+    # 16BIT = Yes|No, 8 or 16 bit output, default: 16 bit
+    16BIT = yes
+    
+    # FREQUENCY = <val>, mixing frequency, default: 44100 Hz
+    FREQUENCY = 44100
+    
+    # INTERPOLATE = Yes|No, use interpolate mixing, default: Yes
+    INTERPOLATE = yes
+    
+    # HQMIXER = Yes|No, use high-quality (but slow) software mixer, default: No
+    HQMIXER = no
+    
+    # SURROUND = Yes|No, use surround mixing, default: No
+    SURROUND = no
+    
+    # REVERB = <val>, set reverb amount (0-15), default: 0 (none)
+    REVERB = 0
+    
+    # VOLUME = <val>, volume from 0 (silence) to 100, default: 100
+    VOLUME = 100
+    
+    # VOLRESTRICT = Yes|No, restrict volume of player to volume supplied by user,
+    #                       default: No
+    VOLRESTRICT = no
+    
+    # FADEOUT = Yes|No, volume fade at the end of the module, default: No
+    FADEOUT = no
+    
+    # LOOP = Yes|No, enable in-module loops, default: No
+    LOOP = no
+    
+    # PANNING = Yes|No, process panning effects, default: Yes
+    PANNING = yes
+    
+    # EXTSPD = Yes|No, process Protracker extended speed effect, default: Yes
+    EXTSPD = yes
+    
+    # PM_MODULE = Yes|No, Module repeats, default: No
+    PM_MODULE = no
+    
+    # PM_MULTI = Yes|No, PlayList repeats, default: Yes
+    PM_MULTI = yes
+    
+    # PM_SHUFFLE = Yes|No, Shuffle list at start and if all entries are played,
+    #                      default: No
+    PM_SHUFFLE = no
+    
+    # PM_RANDOM = Yes|No, PlayList in random order, default: No
+    PM_RANDOM = no
+    
+    # CURIOUS = Yes|No, look for hidden patterns in module, default: No
+    CURIOUS = no
+    
+    # TOLERANT = Yes|No, don't halt on file access errors, default: Yes
+    TOLERANT = yes
+    
+    # RENICE = RENICE_NONE (change nothing), RENICE_PRI (Renice to -20) or
+    #          RENICE_REAL (get realtime priority), default: RENICE_NONE
+    #   Note that RENICE_PRI is only available under FreeBSD, Linux, NetBSD,
+    #   OpenBSD and OS/2, and RENICE_REAL is only available under FreeBSD, Linux
+    #   and OS/2.
+    RENICE = RENICE_NONE
+    
+    # STATUSBAR = <val>, size of statusbar from 0 to 2, default: 2
+    STATUSBAR = 2
+    
+    # SAVECONFIG = Yes|No, save configuration on exit, default: Yes
+    SAVECONFIG = yes
+    
+    # SAVEPLAYLIST = Yes|No, save playlist on exit, default: Yes
+    SAVEPLAYLIST = yes
+    
+    # PL_NAME = "name", name under which the playlist will be saved
+    #                   by selecting 'Save' in the playlist-menu
+    PL_NAME = "playlist.mpl"
+    
+    # FULLPATHS = Yes|No, display full path of files, default: Yes
+    FULLPATHS = yes
+    
+    # FORCESAMPLES = Yes|No, always display sample names (instead of
+    #     instrument names) in volumebars panel, default: No
+    FORCESAMPLES = no
+    
+    # FAKEVOLUMEBARS = Yes|No, display fast, but not always accurate, volumebars
+    #     in volumebars panel, default: Yes
+    #     The real volumebars (when this setting is "No") take some CPU time to
+    #     be computed, and don't work with every driver.
+    FAKEVOLUMEBARS = yes
+    
+    # WINDOWTITLE = Yes|No, set the term/window title to song name
+    #     (or filename if song has no title), default: Yes
+    WINDOWTITLE = yes
+    
+    # THEME = "name", name of the theme to use, default: <defaultColor>
+    THEME = "<defaultColor>"
+    
+    # Definition of the themes
+    #   NAME = "name", specifies the name of the theme
+    #   <screen_element> = normal | bold | reverse  , for mono themes or
+    #   <screen_element> = <fgcolor>,<bgcolor>      , for color themes
+    #     where <fgcolor> = black | blue | green | cyan | red | magenta |
+    #                       brown | gray | b_black | b_blue | b_green |
+    #                       b_cyan | b_red | b_magenta | yellow | white
+    #           <bgcolor> = black | blue | green | cyan | red | magenta |
+    #                       brown | gray
+    BEGIN "THEME"
+      NAME = "MC"
+      WARNING = "white,red"
+      TITLE = "white,cyan"
+      BANNER = "b_green,black"
+      SONG_STATUS = "white,blue"
+      INFO_INACTIVE = "black,cyan"
+      INFO_ACTIVE = "white,black"
+      INFO_IHOTKEY = "yellow,cyan"
+      INFO_AHOTKEY = "yellow,black"
+      HELP = "gray,blue"
+      PLAYENTRY_INACTIVE = "gray,blue"
+      PLAYENTRY_ACTIVE = "black,cyan"
+      SAMPLES = "gray,blue"
+      SAMPLES_KICK3 = "white,blue"
+      SAMPLES_KICK2 = "b_cyan,blue"
+      SAMPLES_KICK1 = "b_blue,blue"
+      SAMPLES_KICK0 = "blue,blue"
+      CONFIG = "cyan,blue"
+      VOLBAR = "cyan,blue"
+      VOLBAR_LOW = "b_green,blue"
+      VOLBAR_MED = "yellow,blue"
+      VOLBAR_HIGH = "b_red,blue"
+      VOLBAR_INSTR = "b_green,blue"
+      MENU_FRAME = "black,cyan"
+      MENU_INACTIVE = "white,cyan"
+      MENU_ACTIVE = "white,black"
+      MENU_IHOTKEY = "yellow,cyan"
+      MENU_AHOTKEY = "yellow,black"
+      DLG_FRAME = "black,gray"
+      DLG_LABEL = "black,gray"
+      DLG_STR_TEXT = "black,cyan"
+      DLG_STR_CURSOR = "cyan,black"
+      DLG_BUT_INACTIVE = "black,gray"
+      DLG_BUT_ACTIVE = "black,cyan"
+      DLG_BUT_IHOTKEY = "yellow,gray"
+      DLG_BUT_AHOTKEY = "yellow,cyan"
+      DLG_BUT_ITEXT = "black,gray"
+      DLG_BUT_ATEXT = "black,cyan"
+      DLG_LIST_FOCUS = "black,cyan"
+      DLG_LIST_NOFOCUS = "yellow,cyan"
+      STATUS_LINE = "gray,blue"
+      STATUS_TEXT = "gray,blue"
+    END "THEME"
+    BEGIN "THEME"
+      NAME = "Reverse"
+      WARNING = normal
+      TITLE = bold
+      BANNER = reverse
+      SONG_STATUS = reverse
+      INFO_INACTIVE = normal
+      INFO_ACTIVE = reverse
+      INFO_IHOTKEY = reverse
+      INFO_AHOTKEY = reverse
+      HELP = reverse
+      PLAYENTRY_INACTIVE = reverse
+      PLAYENTRY_ACTIVE = normal
+      SAMPLES = reverse
+      SAMPLES_KICK3 = reverse
+      SAMPLES_KICK2 = reverse
+      SAMPLES_KICK1 = reverse
+      SAMPLES_KICK0 = reverse
+      CONFIG = reverse
+      VOLBAR = reverse
+      VOLBAR_LOW = reverse
+      VOLBAR_MED = reverse
+      VOLBAR_HIGH = reverse
+      VOLBAR_INSTR = reverse
+      MENU_FRAME = normal
+      MENU_INACTIVE = normal
+      MENU_ACTIVE = reverse
+      MENU_IHOTKEY = reverse
+      MENU_AHOTKEY = normal
+      DLG_FRAME = normal
+      DLG_LABEL = normal
+      DLG_STR_TEXT = reverse
+      DLG_STR_CURSOR = normal
+      DLG_BUT_INACTIVE = normal
+      DLG_BUT_ACTIVE = reverse
+      DLG_BUT_IHOTKEY = reverse
+      DLG_BUT_AHOTKEY = normal
+      DLG_BUT_ITEXT = normal
+      DLG_BUT_ATEXT = reverse
+      DLG_LIST_FOCUS = reverse
+      DLG_LIST_NOFOCUS = bold
+      STATUS_LINE = reverse
+      STATUS_TEXT = reverse
+    END "THEME"
+    
+    # Definition of the archiver
+    #   LOCATION = <val>, -1: MARKER gives list of possible file extensions
+    #              otherwise: location where MARKER must be found in the file
+    #   MARKER = <string>, see LOCATION, e.g. ".TAR.GZ .TGZ" or "PK\x03\x04"
+    #   LIST = <command>, command to list archive content (%A archive name,
+    #                     %a short(DOS/WIN) archive name)
+    #   NAMEOFFSET = <val>, column where file names begin,
+    #                -1: start at column 0 and end at first space
+    #   EXTRACT = <command>, command to extract a file to stdout (%A archive name,
+    #              %a short archive name, %f file name, %d destination name(non UNIX))
+    #   SKIPPAT = <string>, Remove the first SKIPSTART lines starting from the first
+    #                       occurrence of SKIPPAT and the last SKIPEND lines from the
+    #                       extracted file (if the command EXTRACT mixes status
+    #                       information and the module).
+    #   SKIPSTART = <val>, 
+    #   SKIPEND = <val>, 
+    BEGIN "ARCHIVER"
+      LOCATION = 0
+      MARKER = "PK\x03\x04"
+      LIST = "unzip -vqq \"%a\""
+      NAMEOFFSET = 58
+      EXTRACT = "unzip -pqq \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = 20
+      MARKER = "\xdc\xa7\xc4\xfd"
+      LIST = "zoo lq \"%a\""
+      NAMEOFFSET = 47
+      EXTRACT = "zoo xpq \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = 0
+      MARKER = "Rar!"
+      LIST = "unrar v -c- \"%a\""
+      NAMEOFFSET = 1
+      EXTRACT = "unrar p -inul \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = 2
+      MARKER = "-lh"
+      LIST = "lha vvq \"%a\""
+      NAMEOFFSET = -1
+      EXTRACT = "lha pq \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = 2
+      MARKER = "-lz"
+      LIST = "lha vvq \"%a\""
+      NAMEOFFSET = -1
+      EXTRACT = "lha pq \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = 257
+      MARKER = "ustar"
+      LIST = "tar -tf \"%a\""
+      NAMEOFFSET = 0
+      EXTRACT = "tar -xOf \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = -1
+      MARKER = ".TAR.GZ .TAZ .TGZ"
+      LIST = "tar -tzf \"%a\""
+      NAMEOFFSET = 0
+      EXTRACT = "tar -xOzf \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = -1
+      MARKER = ".TAR.BZ2 .TBZ .TBZ2"
+      LIST = "tar --use-compress-program=bzip2 -tf \"%a\""
+      NAMEOFFSET = 0
+      EXTRACT = "tar --use-compress-program=bzip2 -xOf \"%a\" \"%f\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = 0
+      MARKER = "\x1f\x8b"
+      LIST = ""
+      NAMEOFFSET = 0
+      EXTRACT = "gzip -dqc \"%a\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    BEGIN "ARCHIVER"
+      LOCATION = 0
+      MARKER = "BZh"
+      LIST = ""
+      NAMEOFFSET = 0
+      EXTRACT = "bzip2 -dqc \"%a\""
+      SKIPPAT = ""
+      SKIPSTART = 0
+      SKIPEND = 0
+    END "ARCHIVER"
+    
+  #+end_src
+* =~/.gitconfig=  #+begin_src conf :tangle ~/.gitconfig
+    [user]
+            name = Christopher Rodriguez
+            email = yewscion@gmail.com
+    #	signingKey = 09DF58DE3CB2049D5DF005BF929E9F75D4928BCF
+    [init]
+            defaultBranch = trunk
+    [commit]
+            gpgSign = true
+  #+end_src
