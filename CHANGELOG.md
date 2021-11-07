@@ -6,7 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased][srht]
 <!-- Added, Changed, Removed, Fixed -->
-- Nothing (yet!).
+### Added
+- `cdr:make-lisp-project` generator function added to `~/.emacs.d/init.el`.
 
 ## [1.0.0] - 2021-11-07
 ### Added
