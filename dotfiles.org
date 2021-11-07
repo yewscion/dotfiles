@@ -216,6 +216,9 @@
       (setq Info-additional-directory-list '("~/.local/share/info"))
     #+end_src
 ** Custom
+   I am trying to remove as much from this file as possible, as it is
+   much more subject to changes I might forget to add here than
+   =init.el=.
 
    #+begin_src elisp :tangle ~/.emacs.d/custom.el
      (custom-set-variables
@@ -522,22 +525,59 @@
               header-level))))
     #+end_src
 **** Pull Task Clock to HOG
-    #+begin_src elisp :tangle ~/.emacs.d/init.el
-      (fset 'cdr:orgy-pull-task-clock-to-hog
-            (kmacro-lambda-form [?\M-< ?\C-a ?\C-s ?* ?  ?T ?a ?s ?k ?s
-                                       return ?\C-c ?\C-e ?\C-b ?\C-s
-                                       ?t ?A ?\C-  ?\C-s ?\C-q ?\C-j
-                                       ?\C-q ?\C-j return ?\M-w ?\C-x ?k
-                                       return ?\C-x ?\C-o ?\C-x ?0 ?\M-<
-                                       ?\C-s ?* ?  ?H ?O ?G return tab
-                                       return ?\C-a ?\M-x ?h ?o ?g ?-
-                                       ?s ?l ?e backspace backspace ?k
-                                       ?e ?l tab return ?\C-r ?< ?p ?r
-                                       ?e ?> return ?\C-n ?\C-c ?\'
-                                       ?\C-y backspace backspace
-                                       ?\C-c ?\' ?\C-c ?\C-p]
-                                0 "%d"))
-    #+end_src
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (fset 'cdr:orgy-pull-task-clock-to-hog
+             (kmacro-lambda-form [?\M-< ?\C-a ?\C-s ?* ?  ?T ?a ?s ?k ?s
+                                        return ?\C-c ?\C-e ?\C-b ?\C-s
+                                        ?t ?A ?\C- ?\C-s ?\C-q ?\C-j
+                                        ?\C-q ?\C-j return ?\M-w ?\C-x
+                                        ?k return ?\C-x ?\C-o ?\C-x ?0
+                                        ?\M-< ?\C-s ?* ?  ?H ?O ?G
+                                        return tab return ?\C-a ?\M-x ?h
+                                        ?o ?g ?- ?s ?k ?e ?l tab return
+                                        ?\C-r ?< ?p ?r ?e ?> return
+                                        ?\C-n ?\C-c ?\' ?\C-y backspace
+                                        backspace ?\C-c ?\' ?\C-c ?\C-p]
+                                 0 "%d"))
+     #+end_src
+**** Pull Inbox List to HOG
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (fset 'cdr:orgy-pull-inbox-for-hog
+             (kmacro-lambda-form [?\C-s ?* ?* ?  ?I ?n ?b ?o ?x return
+                                        ?\M-h ?\M-w ?\C-r ?s ?r ?c ?  ?o
+                                        ?r ?g return ?\C-c ?\' ?\C-y
+                                        ?\M-x ?o ?r ?g ?- ?s ?h ?o ?w ?-
+                                        ?a ?l ?l return ?\M-< ?\C-k
+                                        ?\C-d ?\C-c ?\' ?\C-c ?\' ?\C-c
+                                        ?\' ?\C-r ?H ?O ?G return]
+                                 0 "%d"))
+
+     #+end_src
+**** Clear Inbox List for HOG
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (fset 'cdr:orgy-clear-hog-inbox
+             (kmacro-lambda-form [?\C-s ?* ?* ?  ?I ?n ?b ?o ?x return
+                                        ?\M-h ?\C-w ?\C-r ?* ?  ?h ?o ?g
+                                        return ?\C-e return backspace
+                                        backspace ?* ?* ?  ?I ?n ?b ?o
+                                        ?x return ?- ?  ?\M-x ?o ?r ?g
+                                        ?- ?o ?v ?e ?r ?v ?i ?e ?w
+                                        return]
+                                 0 "%d"))
+
+     #+end_src
+**** Create HOG Entry
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (defun cdr:hog-it ()
+         "Populate a HOG report in my workdesk.org file."
+         (interactive)
+         (progn (end-of-buffer)
+                (search-backward "* Tasks")
+                (cdr:orgy-pull-task-clock-to-hog)
+                (cdr:orgy-pull-inbox-for-hog)
+                (cdr:orgy-clear-hog-inbox)
+                (message "🐖 Hogging it! 🐖")))
+     #+end_src
 *** I Ching Pull
     #+begin_src elisp :tangle ~/.emacs.d/init.el
       ;;; Misc
@@ -634,6 +674,35 @@
                                  mode-line-modes
                                  mode-line-end-spaces)))
     #+end_src
+*** Random Thing From A File
+    Found the basic function [[https://www.emacswiki.org/emacs/RandomThingFromAFile][here]]. The author did not leave their
+    information.
+
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun random-thing-from-a-file (f)
+          (interactive "fLoad Thing from: ")
+          (random t)
+          (save-excursion
+           (find-file f)
+           (let ((line-num (random (count-lines (point-min) (point-max)))))
+             (goto-line line-num)
+             (let ((result (buffer-substring (line-beginning-position) (line-end-position))))
+               (kill-buffer (current-buffer))
+               result))))
+    #+end_src
+
+    Based on their example, I've thrown this together. It pulls from a
+    text file of journal-prompts I will eventually absorb into this
+    file, but for right now they are in =~/Documents/= on my work
+    computer.
+    #+begin_src elisp :tangle ~/.emacs.d/init.el
+      (defun my:journal-prompt ()
+        (interactive)
+        (let* ((thing (random-thing-from-a-file "~/Documents/journal-prompts.txt")))
+          (message
+                  (concat "Journal Prompt for Today: "
+                          thing))))
+    #+end_src
 ** Skeletons
    These are all templates I defined using skeleton.el
 *** HOG Skeleton
@@ -645,9 +714,9 @@
         "** " '(let ((current-prefix-arg '(16)))(call-interactively
         'org-time-stamp-inactive)) ?\n "*** Hand-Off Details" ?\n "
         ,#+begin_src markdown" ?\n "    ### Summary" ?\n "    <pre>" ?\n ?\n
-        "    </pre>" ?\n "    ### CM List" ?\n ?\n " #+end_src" ?\n
-        ?\n "*** Start of Shift Summary" ?\n ?\n "  #+begin_src markdown"
-        ?\n  "    -" ?\n "  #+end_src" ?\n ?\n)
+        "    </pre>" ?\n " #+end_src" ?\n
+        ?\n "*** Start of Shift Summary" ?\n ?\n "  #+begin_src org :results html replace"
+        ?\n ?\n "  #+end_src" ?\n)
     #+end_src
 *** Team Meeting Skeleton
     #+begin_src elisp :tangle ~/.emacs.d/init.el
@@ -1074,12 +1143,12 @@
             org-return-follows-link t
             org-startup-folded t
             org-image-actual-width 590
+            org-adapt-indentation t
             org-capture-before-finalize-hook nil
             org-contacts-files '("~/Documents/org/contacts.gpg")
             org-export-backends '(ascii beamer html icalendar
                                         latex man md odt org
                                         texinfo deck rss s5)
-            org-image-actual-width 590
             org-refile-targets '((org-agenda-files :maxlevel . 3)
                                  (nil :maxlevel . 9)
                                  (org-buffer-list :maxlevel . 3))
@@ -1176,6 +1245,14 @@
           %(org-cliplink-capture)
           %?")
      #+end_src
+**** Wishlist Item Capture
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       (defun my-org-capture:wishlist-template ()
+         "Org Capture Template for Budget-Control Wishlist."
+         "* %U %^{Short Description of Note|Desired Item} %^G
+       %^{Location}p%^{Price}p%^{Category}p%^{Optional Description}
+       %?")
+     #+end_src
 *** Capture Templates
     #+begin_src elisp :tangle ~/.emacs.d/init.el
       (setq org-capture-templates
@@ -1203,6 +1280,9 @@
                (file+headline "~/Documents/org/metrics.org"
                               "Health")
                (function my-org-capture:health-template) :unnarrowed t)
+              ("dw" "Wishlist Item" entry
+               (file "~/Documents/org/wishlist.org")
+               (function my-org-capture:wishlist-template))
               ("c" "Chores")
               ("cg" "Grocery Shopping List" entry
                (file+headline "~/Documents/org/chores.org"
@@ -1210,62 +1290,83 @@
                (function my-org-capture:grocery-template))))
     #+end_src
 *** Babel
-    #+begin_src elisp :tangle ~/.emacs.d/init.el
-      ;;; Babel
-      (org-babel-do-load-languages
-       'org-babel-load-languages
-       '((abc . t)
-         (ammonite . t)
-         (C . t)
-         (clojure . t)
-         (browser . t)
-         (dot . t)
-         (elixir . t)
-         (elm . t)
-         (elvish . t)
-         (emacs-lisp . t)
-         (haskell . t)
-         (hledger . t)
-         (http . t)
-         (js . t)
-         (julia . t)
-         (kotlin . t)
-         (lilypond . t)
-         (lisp . t)
-         (lua . t)
-         (makefile . t)
-         (markdown . t)
-         (mermaid . t)
-         (nim . t)
-         (org . t)
-         (perl . t)
-         (prolog . t)
-         (python . t)
-         (raku . t)
-         (ruby . t)
-         (rust . t)
-         (scheme . t)
-         (shell . t)
-         (shen . t)
-         (sql . t)
-         (sqlite . t)
-         ))
-      (setq org-confirm-babel-evaluate nil)
-      (add-hook 'org-babel-after-execute-hook 'org-display-inline-images)
+**** Library of Babel
+     #+begin_src org :tangle ~/.emacs.d/library-of-babel.org
+       ,#+name: tower::html-generic-head
+       ,#+begin_src elisp :var title="Generic Title - Call with (title) variable to fix!" canonical="https://cdr255.com/"
+            (format "<!DOCTYPE html>
+            <html lang=\"en\">
+              <head>
+                <meta charset=\"utf-8\">
+                <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+                <meta charset=\"utf-8\">
+                <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+                <meta property=\"og:title\" content=\"cdr255\" />
+                <meta name=\"author\" content=\"Christopher Rodriguez\" />
+                <meta property=\"og:locale\" content=\"en_US\" />
+                <link rel=\"canonical\" href=\"%s\" />
+                <link rel=\"stylesheet\" href=\"/style/main.css\">
+                <title>%s</title>
+              </head>" canonical title)
+       ,#+end_src
+     #+end_src
+**** Org Babel Setup
+     #+begin_src elisp :tangle ~/.emacs.d/init.el
+       ;;; Babel
+       (org-babel-do-load-languages
+        'org-babel-load-languages
+        '((abc . t)
+          (ammonite . t)
+          (C . t)
+          (clojure . t)
+          (browser . t)
+          (dot . t)
+          (elixir . t)
+          (elm . t)
+          (elvish . t)
+          (emacs-lisp . t)
+          (haskell . t)
+          (hledger . t)
+          (http . t)
+          (js . t)
+          (julia . t)
+          (kotlin . t)
+          (lilypond . t)
+          (lisp . t)
+          (lua . t)
+          (makefile . t)
+          (markdown . t)
+          (mermaid . t)
+          (nim . t)
+          (org . t)
+          (perl . t)
+          (prolog . t)
+          (python . t)
+          (raku . t)
+          (ruby . t)
+          (rust . t)
+          (scheme . t)
+          (shell . t)
+          (shen . t)
+          (sql . t)
+          (sqlite . t)
+          ))
+       (setq org-confirm-babel-evaluate nil)
+       (add-hook 'org-babel-after-execute-hook 'org-display-inline-images)
 
-      ;;;; Babel for Scala
-      (setq ob-ammonite-prompt-str "scala>") ;; This is the same value as
-                                             ;; repl.prompt(), defined in
-                                             ;; ~/.ammonite/predef.sc
-                                             ;; without trailing
-                                             ;; whitespace. E.g.
-                                             ;; repl.prompt() = "scala> "
-                                             ;; would give You "scala>"
-                                             ;; here.
+       ;;;; Babel for Scala
+       (setq ob-ammonite-prompt-str "scala>") ;; This is the same value as
+                                              ;; repl.prompt(), defined in
+                                              ;; ~/.ammonite/predef.sc
+                                              ;; without trailing
+                                              ;; whitespace. E.g.
+                                              ;; repl.prompt() = "scala> "
+                                              ;; would give You "scala>"
+                                              ;; here.
 
-      ;;;; Babel for Raku
-      (setq org-babel-raku-command "rakudo")
-    #+end_src
+       ;;;; Babel for Raku
+       (setq org-babel-raku-command "rakudo")
+     #+end_src
 *** Projects                                                       :refactor:
     #+begin_src elisp :tangle ~/.emacs.d/init.el
       ;;; Projects
@@ -1299,6 +1400,24 @@
               ))
 
     #+end_src
+** Org Roam
+   I am keeping Org Roam configuration outside of the Org Mode config.
+
+   #+begin_src elisp :tangle ~/.emacs.d/init.el
+                    (setq org-roam-v2-ack t)
+                    (require 'org-roam)
+                    (setq org-roam-directory "~/Documents/org-roam/")
+                    (setq org-roam-capture-templates
+                          '(("d" "Default" plain
+                             "%?"
+                             :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
+                             :unnarrowed t)
+                            ("l" "Programming Language" plain
+                             "* Characteristics\n  - Family: %?\n  - Inspired By:\n* Reference\n* Overview"
+                             :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
+                             :unnarrowed t)))
+                    (org-roam-setup)
+   #+end_src
 ** UI
 *** Check if We're in a GUI
     #+begin_src elisp :tangle ~/.emacs.d/init.el
@@ -1523,13 +1642,17 @@
       ;; (global-set-key (kbd "s-q") nil)
       ;; (global-set-key (kbd "s-q") nil)
       ;; (global-set-key (kbd "s-q") nil)
+      (global-set-key (kbd "s-<tab>") 'indent-relative)
     #+end_src
-**** Org Keybinding That I Want Globally
+**** Org Keybindings That I Want Globally
     #+begin_src elisp :tangle ~/.emacs.d/init.el
-      ;;; Org Keybindings Made Global
+      ;;; Mode-specific Keybindings Made Global
       (global-set-key (kbd "C-c l") 'org-store-link)
       (global-set-key (kbd "C-c a") 'org-agenda)
       (global-set-key (kbd "C-c c") 'org-capture)
+      (global-set-key (kbd "C-c n l") 'org-roam-buffer-toggle)
+      (global-set-key (kbd "C-c n f") 'org-roam-node-find)
+      (global-set-key (kbd "C-c n i") 'org-roam-node-insert)
     #+end_src
 ** Startup File
    This is the file which will show each time Emacs is started without
@@ -1539,85 +1662,205 @@
      (find-file "~/Documents/org/main.org")
    #+end_src
 * =~/.config/stumpwm/config=
-I am going to keep my dotfiles in a literate programming file as well.
+  I am going to keep my dotfiles in a literate programming file as well.
+** Preamble
+   First, we'll declare that we are working in Stumpwm's package.
 
-#+begin_src lisp :tangle ~/.config/stumpwm/config :mkdirp yes
-  ;; -*-lisp-*-
-  ;;
-  ;; Here is a sample .stumpwmrc file
+   #+begin_src lisp :tangle ~/.config/stumpwm/config
+     ;; -*-lisp-*-
+     ;;
+     ;; cdr255's .stumpwmrc file. Pulled from the =dotfiles= repo.
 
-  (in-package :stumpwm)
+     (in-package :stumpwm)
+   #+end_src
+** Imported from Example
+   Then we'll take care of a few basics, lifted from the example
+   configuration file: Our prefix key, the =colon1= (eval) command, and
+   =make-web-jump=
 
-  ;; change the prefix key to something else
-  (set-prefix-key (kbd "C-t"))
+   #+begin_src lisp :tangle ~/.config/stumpwm/config
+     ;; These are lifted right from the example.
+     ;;;
+     ;;; Set our prefix key.
+     (set-prefix-key (kbd "C-t"))
+     
+     ;;; prompt the user for an interactive command. The first arg is an
+     ;;; optional initial contents.
+     (defcommand colon1 (&optional (initial "")) (:rest)
+       (let ((cmd (read-one-line (current-screen) ": " :initial-input initial)))
+         (when cmd
+           (eval-command cmd t))))
+     
+     ;;; Web jump (works for DuckDuckGo and Imdb)
+     (defmacro make-web-jump (name prefix)
+       `(defcommand ,(intern name) (search) ((:rest ,(concatenate 'string name " search: ")))
+         (nsubstitute #\+ #\Space search)
+         (run-shell-command (concatenate 'string ,prefix search))))
+   #+end_src
+** Custom Functions
+   #+begin_src lisp :tangle ~/.config/stumpwm/config
+     ;; Custom Functions
 
-  ;; prompt the user for an interactive command. The first arg is an
-  ;; optional initial contents.
-  (defcommand colon1 (&optional (initial "")) (:rest)
-    (let ((cmd (read-one-line (current-screen) ": " :initial-input initial)))
-      (when cmd
-        (eval-command cmd t))))
+     ;;; PusleAudio Volume Control Functions
+     ;;; Pulled from https://gist.github.com/TeMPOraL/4cece5a894c62a4f02ff14028d9f20e1
+     (defun current-volume-settings ()
+       "Return current volume settings as multiple values (`MUTEDP', `VOLUME-LEFT-%', `VOLUME-RIGHT-%')."
+       (let* ((raw-output (run-shell-command "pactl list sinks" t))
+              (raw-mute (nth-value 1 (cl-ppcre:scan-to-strings "Mute: ([a-z]+)" raw-output)))
+              (raw-volume (nth-value 1 (cl-ppcre:scan-to-strings "Volume: .+/\\s+(\\d+).+/.+/\\s+(\\d+).+/" raw-output)))
+              (mutedp (string= (svref raw-mute 0) "yes"))
+              (vol%-l (parse-integer (svref raw-volume 0)))
+              (vol%-r (parse-integer (svref raw-volume 1))))
+         (values mutedp vol%-l vol%-r)))
+     (defun display-current-volume ()
+       "Graphically display the current volume state."
+       (multiple-value-bind (mutedp left% right%)
+           (current-volume-settings)
+         (let ((*record-last-msg-override* t))
+           (message "Volume: ~:[~;^1MUTE^n~] [~D%/~D%]" mutedp left% right%))))
 
-  ;; Read some doc
-  (define-key *root-map* (kbd "d") "exec gv")
-  ;; Browse somewhere
-  (define-key *root-map* (kbd "b") "colon1 exec firefox http://www.")
-  ;; Ssh somewhere
-  (define-key *root-map* (kbd "C-s") "colon1 exec kitty ssh ")
-  ;; Lock screen
-  (define-key *root-map* (kbd "C-l") "exec slock")
+     (defcommand vol+ (dvol force) (:string :y-or-n)
+       "Change the volume by `DV' percent, possibly going over 100% if `FORCE' is T."
+       (run-shell-command
+        "pactl set-sink-volume alsa_output.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__hw_sofhdadsp__sink +5%")
+       (display-current-volume)
+     (echo (format nil "pactl set-sink-volume alsa_output.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__hw_sofhdadsp__sink ~a" dvol)))
 
-  ;; Web jump (works for DuckDuckGo and Imdb)
-  (defmacro make-web-jump (name prefix)
-    `(defcommand ,(intern name) (search) ((:rest ,(concatenate 'string name " search: ")))
-      (nsubstitute #\+ #\Space search)
-      (run-shell-command (concatenate 'string ,prefix search))))
+     (defcommand vol-mute () ()
+       "Toggle mute of volume."
+       (run-shell-command "pactl set-sink-mute alsa_output.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__hw_sofhdadsp__sink toggle" t)
+       (display-current-volume))
 
-  (make-web-jump "duckduckgo" "firefox https://duckduckgo.com/?q=")
-  (make-web-jump "imdb" "firefox http://www.imdb.com/find?q=")
+     (defcommand display-brightness-up () ()
+       "Increase Brightness of Default Display."
+       (run-shell-command "brightnessctl s 5%+" t))
 
-  ;; C-t M-s is a terrble binding, but you get the idea.
-  (define-key *root-map* (kbd "M-s") "duckduckgo")
-  (define-key *root-map* (kbd "i") "imdb")
+     (defcommand display-brightness-down () ()
+       "Decrease Brightness of Default Display."
+       (run-shell-command "brightnessctl s 5%-" t))
+     (defcommand show-volume () ()
+       "Show the Current Volume Setting."
+       (run-shell-command
+        "pactl list sinks | grep Volume | tail -n 2 | head -n 1 | sed 's/^.*: //g'" t))
+     (defcommand vol+5 () ()
+       "Increase Volume by 5%"
+       (run-shell-command
+        "pactl set-sink-volume alsa_output.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__hw_sofhdadsp__sink +5%")
+       (show-volume))
+     (defcommand vol-5 () ()
+       "Decrease Volume by 5%"
+       (run-shell-command
+        "pactl set-sink-volume alsa_output.pci-0000_00_1f.3-platform-skl_hda_dsp_generic.HiFi__hw_sofhdadsp__sink -5%")
+       (show-volume))
+   #+end_src
+** Web Jumps
+   #+begin_src lisp :tangle ~/.config/stumpwm/config
+     ;; Web Jumps
+     (make-web-jump "duckduckgo" "firefox https://duckduckgo.com/?q=")
+     (make-web-jump "imdb" "firefox http://www.imdb.com/find?q=")
+   #+end_src
+** Top Map Assignments
+   #+begin_src lisp :tangle ~/.config/stumpwm/config
+     ;;; Within bounds
+     (define-key stumpwm:*top-map* (stumpwm:kbd "XF86AudioLowerVolume") "vol-5")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "XF86AudioRaiseVolume") "vol+5")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "C-XF86AudioLowerVolume") "vol+ -1% n")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "C-XF86AudioRaiseVolume") "vol+ 1% n")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "S-XF86AudioLowerVolume") "vol+ -25% n")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "S-XF86AudioRaiseVolume") "vol+ 25% n")
 
-  ;; Message window font
-  (set-font "-xos4-terminus-medium-r-normal--14-140-72-72-c-80-iso8859-15")
+     ;;; Outside bounds
+     (define-key stumpwm:*top-map* (stumpwm:kbd "M-XF86AudioLowerVolume") "vol+ -5% y")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "M-XF86AudioRaiseVolume") "vol+ 5% y")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "M-C-XF86AudioLowerVolume") "vol+ -1% y")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "M-C-XF86AudioRaiseVolume") "vol+ 1% y")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "M-S-XF86AudioLowerVolume") "vol+ -25% y")
+     (define-key stumpwm:*top-map* (stumpwm:kbd "M-S-XF86AudioRaiseVolume") "vol+ 25% y")
 
-  ;;; Define window placement policy...
+     ;;; Muting
+     (define-key stumpwm:*top-map* (stumpwm:kbd "XF86AudioMute") "vol-mute")
 
-  ;; Clear rules
-  (clear-window-placement-rules)
+     ;;; Display Brightness
+     (define-key *top-map* (kbd "XF86MonBrightnessUp") "display-brightness-up")
+     (define-key *top-map* (kbd "XF86MonBrightnessDown") "display-brightness-down")
+   #+end_src
+** Root Map Assignments
+   #+begin_src lisp :tangle ~/.config/stumpwm/config
+     ;; Root Map Assignments
+     ;;; Read some doc
+     (define-key *root-map* (kbd "d") "exec gv")
+     ;;; Browse somewhere
+     (define-key *root-map* (kbd "b") "colon1 exec firefox http://www.")
+     ;;; Ssh somewhere
+     (define-key *root-map* (kbd "C-s") "colon1 exec kitty ssh ")
+     ;;; Lock screen
+     (define-key *root-map* (kbd "C-l") "exec slock")
+     ;;; VPN
+     (define-key *root-map* (kbd "V") "exec /opt/cisco/anyconnect/bin/vpnui")
+     ;;; Web Jump Searches
+     (define-key *root-map* (kbd "M-s") "duckduckgo")
+     (define-key *root-map* (kbd "i") "imdb")
+   #+end_src
+** UI Customization
+*** Fonts
+    GNU Unifont is the only message font I need.
 
-  ;; Last rule to match takes precedence!
-  ;; TIP: if the argument to :title or :role begins with an ellipsis, a substring
-  ;; match is performed.
-  ;; TIP: if the :create flag is set then a missing group will be created and
-  ;; restored from *data-dir*/create file.
-  ;; TIP: if the :restore flag is set then group dump is restored even for an
-  ;; existing group using *data-dir*/restore file.
-  (define-frame-preference "Default"
-    ;; frame raise lock (lock AND raise == jumpto)
-    (0 t nil :class "Konqueror" :role "...konqueror-mainwindow")
-    (1 t nil :class "XTerm"))
+    #+begin_src lisp :tangle ~/.config/stumpwm/config
+    ;; Message/Modeline Font
+    (set-font "-gnu-unifont-medium-r-normal-sans-16-160-75-75-c-80-iso10646-1")
+    #+end_src
+*** Mode Line
+    Taken from the [[https://wiki.archlinux.org/title/stumpwm#Enable_modeline][Arch Wiki]]. I want a consistance UI at the top of
+    the screen.
 
-  (define-frame-preference "Ardour"
-    (0 t   t   :instance "ardour_editor" :type :normal)
-    (0 t   t   :title "Ardour - Session Control")
-    (0 nil nil :class "XTerm")
-    (1 t   nil :type :normal)
-    (1 t   t   :instance "ardour_mixer")
-    (2 t   t   :instance "jvmetro")
-    (1 t   t   :instance "qjackctl")
-    (3 t   t   :instance "qjackctl" :role "qjackctlMainForm"))
-
-  (define-frame-preference "Shareland"
-    (0 t   nil :class "XTerm")
-    (1 nil t   :class "aMule"))
-
-  (define-frame-preference "Emacs"
-    (1 t t :restore "emacs-editing-dump" :title "...xdvi")
-    (0 t t :create "emacs-dump" :class "Emacs"))
-#+end_src
+    #+begin_src lisp :tangle ~/.config/stumpwm/config
+      ;;; Set up my Mode Line
+      
+      (setf *window-format* "%m%n%s%c")
+      (setf *screen-mode-line-format* (list "[^B%n^b] %W^>%d"))
+      (setf *time-modeline-string* "%a %b %e %k:%M")
+      (setf *mode-line-timeout* 2)
+      (enable-mode-line (current-screen) (current-head) t)
+    #+end_src
+** Groups and Windows
+*** Create Groups
+    #+begin_src lisp :tangle ~/.config/stumpwm/config
+      ;; Create my Standard Groups
+      (when *initializing*
+        (mapcar #'gnewbg
+                '("Emacs"
+                  "Email"
+                  "Messaging")))
+    #+end_src
+*** Define Window Placement Rules
+  #+begin_src lisp :tangle ~/.config/stumpwm/window-placement.lisp
+        (("Messaging" 0 T T :CLASS "TelegramDesktop")
+         ("Email" 0 T T :CLASS "Evolution.real" :INSTANCE "evolution.real")
+         ("Emacs" 0 T T :CLASS "Emacs" :INSTANCE "emacs")
+         ("Default" 1 T T :CLASS "Firefox")
+         ("Default" 0 T T :CLASS "kitty" :INSTANCE "kitty")
+         ("Messaging" 1 T T :CLASS "slack" :INSTANCE "slack"))
+  #+end_src
+*** Load Window Placement Rules
+  #+begin_src lisp :tangle ~/.config/stumpwm/config
+    ;; Restore Window Placement Rules (defined in
+    ;; ~/.config/stumpwm/window-placement.lisp
+    
+    ;;; Clear rules
+    (clear-window-placement-rules)
+    
+    ;;; Restore Rules
+    (restore-window-placement-rules "~/.config/stumpwm/window-placement.lisp")
+  #+end_src
+** Startup Programs
+  #+begin_src lisp :tangle ~/.config/stumpwm/config
+    (stumpwm:run-commands
+     "exec firefox"
+     "exec kitty"
+     "exec emacs"
+     "exec evolution"
+     "exec telegram-desktop")
+  #+end_src
 * =~/.mednafen/mednafen.cfg=
   #+begin_src conf :tangle ~/.mednafen/mednafen.cfg
     ;VERSION 1.27.1
@@ -24757,7 +25000,8 @@ I am going to keep my dotfiles in a literate programming file as well.
 
   #+end_src
 * =~/.gitconfig=
-  #+begin_src conf :tangle ~/.gitconfig
+  ADD THE TANGLE AFTER ENSURING SIGNING KEY IS CORRECT. REMOVE WHEN DONE.
+  #+begin_src conf
     [user]
             name = Christopher Rodriguez
             email = yewscion@gmail.com
@@ -24768,7 +25012,7 @@ I am going to keep my dotfiles in a literate programming file as well.
             gpgSign = true
   #+end_src
 * =~/.ssh/config= for home
-  #+begin_src conf-unix :tangle ~/.ssh/config
+  #+begin_src conf-unix
     Host cdr.gdn
          Port 412
   #+end_src
