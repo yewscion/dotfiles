@@ -1672,6 +1672,7 @@
      ;; cdr255's .stumpwmrc file. Pulled from the =dotfiles= repo.
 
      (in-package :stumpwm)
+     (load-module "battery-portable")
    #+end_src
 ** Imported from Example
    Then we'll take care of a few basics, lifted from the example
@@ -1815,9 +1816,9 @@
 
     #+begin_src lisp :tangle ~/.config/stumpwm/config
       ;;; Set up my Mode Line
-      
+
       (setf *window-format* "%m%n%s%c")
-      (setf *screen-mode-line-format* (list "[^B%n^b] %W^>%d"))
+      (setf *screen-mode-line-format* (list "[^B%n^b] %W^>| ⏻ %B | ⏲ %d"))
       (setf *time-modeline-string* "%a %b %e %k:%M")
       (setf *mode-line-timeout* 2)
       (enable-mode-line (current-screen) (current-head) t)
@@ -1853,7 +1854,7 @@
     (restore-window-placement-rules "~/.config/stumpwm/window-placement.lisp")
   #+end_src
 ** Startup Programs
-  #+begin_src lisp :tangle ~/.config/stumpwm/config
+  #+begin_src lisp :tngle ~/.config/stumpwm/config
     (stumpwm:run-commands
      "exec firefox"
      "exec kitty"
@@ -25000,7 +25001,7 @@
 
   #+end_src
 * =~/.gitconfig=
-  ADD THE TANGLE AFTER ENSURING SIGNING KEY IS CORRECT. REMOVE WHEN DONE.
+  *ADD THE TANGLE AFTER ENSURING SIGNING KEY IS CORRECT. REMOVE WHEN DONE.*
   #+begin_src conf
     [user]
             name = Christopher Rodriguez
@@ -25011,7 +25012,8 @@
     [commit]
             gpgSign = true
   #+end_src
-* =~/.ssh/config= for home
+* =~/.ssh/config=
+  *ADD THE TANGLE AFTER ENSURING YOU AREN'T OVERWRITING DEFAULTS. REMOVE WHEN DONE.*
   #+begin_src conf-unix
     Host cdr.gdn
          Port 412
