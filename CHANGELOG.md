@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- Added, Changed, Removed, Fixed -->
 ### Added
 - `cdr:make-lisp-project` generator function added to `~/.emacs.d/init.el`.
+- `~/.Xresources` file support.
+### Changed
+- STUMPWM now using urxvt by default, as well as F11 fullscreen.
 
 ## [1.0.0] - 2021-11-07
 ### Added

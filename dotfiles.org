@@ -766,6 +766,9 @@
      <!-- Added, Changed, Removed, Fixed -->
      ### Added
      - `cdr:make-lisp-project` generator function added to `~/.emacs.d/init.el`.
+     - `~/.Xresources` file support.
+     ### Changed
+     - STUMPWM now using urxvt by default, as well as F11 fullscreen.
 
      ## [1.0.0] - 2021-11-07
      ### Added
@@ -3561,16 +3564,19 @@
      ;;; Display Brightness
      (define-key *top-map* (kbd "XF86MonBrightnessUp") "display-brightness-up")
      (define-key *top-map* (kbd "XF86MonBrightnessDown") "display-brightness-down")
+
+     ;;; Misc
+     (define-key *top-map* (kbd "F11") "fullscreen")
    #+end_src
 ** Root Map Assignments
    #+begin_src lisp :tangle ~/.config/stumpwm/config
      ;; Root Map Assignments
      ;;; Read some doc
-     (define-key *root-map* (kbd "d") "exec gv")
+     (define-key *root-map* (kbd "c") "exec urxvt")
      ;;; Browse somewhere
      (define-key *root-map* (kbd "b") "colon1 exec firefox http://www.")
      ;;; Ssh somewhere
-     (define-key *root-map* (kbd "C-s") "colon1 exec kitty ssh ")
+     (define-key *root-map* (kbd "C-s") "colon1 exec urxvt ssh ")
      ;;; Lock screen
      (define-key *root-map* (kbd "C-l") "exec slock")
      ;;; VPN
@@ -3616,7 +3622,7 @@
          ("Email" 0 T T :CLASS "Evolution.real" :INSTANCE "evolution.real")
          ("Emacs" 0 T T :CLASS "Emacs" :INSTANCE "emacs")
          ("Default" 1 T T :CLASS "Firefox")
-         ("Default" 0 T T :CLASS "kitty" :INSTANCE "kitty")
+         ("Default" 0 T T :CLASS "URxvt")
          ("Messaging" 1 T T :CLASS "slack" :INSTANCE "slack"))
   #+end_src
 *** Load Window Placement Rules
@@ -3631,13 +3637,14 @@
     (restore-window-placement-rules "~/.config/stumpwm/window-placement.lisp")
   #+end_src
 ** Startup Programs
-  #+begin_src lisp :tngle ~/.config/stumpwm/config
+  #+begin_src lisp :tangle ~/.config/stumpwm/config
     (stumpwm:run-commands
      "exec firefox"
-     "exec kitty"
+     "exec urxvt"
      "exec emacs"
      "exec evolution"
-     "exec telegram-desktop")
+     "exec telegram-desktop"
+     "exec slack")
   #+end_src
 * =~/.mednafen/mednafen.cfg=
   #+begin_src conf :tangle ~/.mednafen/mednafen.cfg
@@ -26795,3 +26802,68 @@
     Host cdr.gdn
          Port 412
   #+end_src
+* =~/.Xresources=
+** Color Scheme for Terminals
+  #+begin_src conf-unix :tangle ~/.Xresources
+    !! Color Scheme is bespin.dark from terminal.sexy
+    ! special
+    ,*.foreground:   #8a8986
+    ,*.background:   #28211c
+    ,*.cursorColor:  #8a8986
+
+    ! black
+    ,*.color0:       #28211c
+    ,*.color8:       #666666
+
+    ! red
+    ,*.color1:       #cf6a4c
+    ,*.color9:       #cf6a4c
+
+    ! green
+    ,*.color2:       #54be0d
+    ,*.color10:      #54be0d
+
+    ! yellow
+    ,*.color3:       #f9ee98
+    ,*.color11:      #f9ee98
+
+    ! blue
+    ,*.color4:       #5ea6ea
+    ,*.color12:      #5ea6ea
+
+    ! magenta
+    ,*.color5:       #9b859d
+    ,*.color13:      #9b859d
+
+    ! cyan
+    ,*.color6:       #afc4db
+    ,*.color14:      #afc4db
+
+    ! white
+    ,*.color7:       #8a8986
+    ,*.color15:      #baae9e
+
+  #+end_src
+** =rxvt-unicode= config
+   #+begin_src conf-unix :tangle ~/.Xresources
+     !! rxvt-unicode stuff
+     URxvt*borderColor: #28211c
+     URxvt.font: xft:FreeMono:size=11
+     URxvt.boldFont: xft:FreeMono:size=11
+     URxvt.italicFont: xft:FreeMono:size=11
+     URxvt.boldItalicfont: xft:FreeMono:size=11
+     URxvt.letterSpace: 0
+     URxvt.lineSpace: 0
+     URxvt.geometry: 92x24
+     URxvt.internalBorder: 4
+     URxvt.cursorBlink: true
+     URxvt.cursorUnderline: false
+     URxvt.saveline: 20480
+     URxvt.scrollBar: false
+     URxvt.scrollBar_right: false
+     URxvt.urgentOnBell: true
+     URxvt.depth: 24
+     URxvt.iso14755: false
+     URxvt.scrollTtyOutput: false
+     URxvt*print-pipe: cat > $HOME/Downloads/$(date --iso-8601=s | sed 's/://g').urxvt.out
+   #+end_src
