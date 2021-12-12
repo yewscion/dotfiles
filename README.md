@@ -27,7 +27,6 @@ The main utility for this repo is to make it easy for me to maintain
 configurations across multiple machines. If it can be useful for You,
 great. If not, that's fine, it's mostly just for me.
 
-
 ## Contributing
 Pull requests are not welcome; Configuration is too personal a choice for such things.
 
