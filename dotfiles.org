@@ -979,6 +979,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 (setq Info-additional-directory-list '("~/.local/share/info"))
 #+end_src
+*** Vertico & Consult
+    Completion Framework!
+
+    [2022-01-23 Sun] Found this cluttered up the mental model I have
+    of my file system, and was slowing me down. I disable it today.
+
+#+begin_src elisp
+(vertico-mode)
+(vertico-grid-mode)
+(vertico-indexed-mode)
+#+end_src
 ** Custom
    I am trying to remove as much from this file as possible, as it is
    much more subject to changes I might forget to add here than
@@ -1479,6 +1490,15 @@ level in Org-Mode."
   (interactive)
   (insert
    (gui-get-primary-selection)))
+#+end_src
+*** Copy Entire Subtree for Post to Canvas
+#+begin_src elisp
+(defun copy-unfilled-subtree ()
+  "Copies the current Org-Mode subtree after unfilling the region, for
+use with websites not expecting 80 columns."
+  (interactive) (org-mark-subtree) (next-line) (unfill-paragraph t)
+  (copy-region-as-kill 0 0 t) (org-mark-subtree) (next-line)
+  (fill-paragraph nil t) (message "Unfilled Subtree Copied!"))
 #+end_src
 ** Skeletons
    These are all templates I defined using skeleton.el
@@ -2577,7 +2597,7 @@ programming file, prompting user for choices."
       org-return-follows-link t
       org-startup-folded t
       org-image-actual-width 590
-      org-adapt-indentation t
+      org-adapt-indentation nil
       org-capture-before-finalize-hook nil
       org-contacts-files '("~/Documents/org/contacts.gpg")
       org-export-backends '(ascii beamer html icalendar
@@ -2815,8 +2835,8 @@ programming file, prompting user for choices."
 (setq org-src-preserve-indentation t)
 #+end_src
 *** Setup and Header
-    This is where my personal defaults are loaded.
-    #+begin_src org :tangle ~/.emacs.d/setup.org
+This is where my personal defaults are loaded.
+#+begin_src org :tangle ~/.emacs.d/setup.org
 #+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline
 #+options: author:t broken-links:nil c:nil creator:nil
 #+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:t
@@ -2830,19 +2850,20 @@ programming file, prompting user for choices."
 #+language: en
 #+select_tags: export yup
 #+exclude_tags: noexport nope
-#+property: header-args :mkdirp yes
+#+property: header-args :mkdirp yes :results output verbatim
 #+property: header-args:text :eval never
 #+property: header-args:markdown :eval never
 #+property: header-args:fundamental :eval never
 #+property: header-args:lisp :noweb yes :mkdirp yes
+#+property: header-args:scheme :noweb yes :mkdirp yes :session GUILE
 #+property: header-args:dot :cmd sfdp :mkdirp yes
-#+property: header-args:bash :results output verbatim :dir ~ :shebang #!/usr/bin/env -S bash -i
-    #+end_src
+#+property: header-args:bash :dir ~ :shebang #!/usr/bin/env -S bash -i
+#+end_src
 
-    And this is the header that I'm going to use at the top of each
-    file, which also loads the above.
+And this is the header that I'm going to use at the top of each file, which also
+loads the above.
 
-    #+begin_src org :tangle ~/.emacs.d/header.org
+#+begin_src org :tangle ~/.emacs.d/header.org
 # -*- mode:org; epa-file-encrypt-to: ("1102102EBE7C3AE4" "929E9F75D4928BCF") -*-
 #+title: Title
 #+subtitle: Subtitle
@@ -2874,7 +2895,7 @@ programming file, prompting user for choices."
 #+man_header:
 #+setupfile: ~/.emacs.d/setup.org
 
-    #+end_src
+#+end_src
 ** Org Roam
 I am keeping Org Roam configuration outside of the Org Mode config.
 
@@ -2896,6 +2917,20 @@ the keybindings.
          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
          :unnarrowed t)))
 (org-roam-setup)
+#+end_src
+** Org-Ref & Ebib
+   Since I use a Zettelkasten, I need to be able to cite things.
+
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(setq ebib-bibtex-dialect 'biblatex
+      ebib-preload-bib-files '("~/Documents/bibliographies/main.bib")
+      ebib-reading-list-file "~/Documents/org/data/reading-list.org")
+#+end_src
+
+
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+  (setq org-cite-global-bibliography
+        "~/Documents/bibliographies/main.bib")
 #+end_src
 ** UI
 *** Check if We're in a GUI
@@ -3096,7 +3131,7 @@ the keybindings.
 (global-set-key (kbd "s-r") 'display-line-numbers-mode)
 ;; (global-set-key (kbd "s-t") nil)
 (global-set-key (kbd "s-y") 'yank-from-primary)
-;; (global-set-key (kbd "s-u") nil)
+(global-set-key (kbd "s-u") 'unfill-paragraph)
 ;; (global-set-key (kbd "s-i") nil)
 ;; (global-set-key (kbd "s-o") nil) ; GNOME ?
 ;; (global-set-key (kbd "s-p") nil) ; GNOME ?
@@ -3111,7 +3146,7 @@ the keybindings.
 ;; (global-set-key (kbd "s-l") nil) ; GNOME Lock Screen
 ;; (global-set-key (kbd "s-z") nil)
 ;; (global-set-key (kbd "s-x") nil)
-;; (global-set-key (kbd "s-c") nil)
+(global-set-key (kbd "s-c") 'copy-unfilled-subtree)
 ;; (global-set-key (kbd "s-v") nil) ; GNOME Show Notifications
 ;; (global-set-key (kbd "s-b") nil)
 ;; (global-set-key (kbd "s-n") nil) ; GNOME ?
