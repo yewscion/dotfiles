@@ -920,7 +920,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ;;; Backend Defs
 (setq markdown-command "kramdown"
       inferior-lisp-program "sbcl"
-      inferior-julia-program-name "julia")
+      inferior-julia-program-name "julia"
+      geiser-default-implementation 'guile)
+(setq-default geiser-scheme-implementation 'guile)
 #+end_src
 *** I Ching
 #+begin_src elisp :tangle ~/.emacs.d/init.el
@@ -970,8 +972,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 *** Dired
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 ;;; Dired
-
 (setq dired-listing-switches "-aDFhikmopqs")
+(add-hook 'dired-load-hook
+          (lambda ()
+            (load "dired-x")
+            ;; Set dired-x global variables here.  For example:
+            ;; (setq dired-guess-shell-gnutar "gtar")
+            ;; (setq dired-x-hands-off-my-keys nil)
+            ))
+(remove-hook 'dired-mode-hook
+          (lambda ()
+            ;; Set dired-x buffer-local variables here.  For example:
+            (dired-omit-mode 0)
+            ))
 #+end_src
 *** Info
 #+begin_src elisp :tangle ~/.emacs.d/init.el
@@ -989,6 +1002,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 (vertico-mode)
 (vertico-grid-mode)
 (vertico-indexed-mode)
+#+end_src
+*** AUCTEX
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(setq-default TeX-engine 'luatex)
 #+end_src
 ** Custom
    I am trying to remove as much from this file as possible, as it is
@@ -1543,26 +1560,28 @@ level in Org-Mode."
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 ;;; Header Line Format Function
 (defun cdr:display-header-line ()
-  (setq header-line-format
-        '("%e" mode-line-misc-info)))
+  (unless (string-equal (symbol-name major-mode) "ebib-entry-mode")
+    (setq header-line-format
+          '("%e" mode-line-misc-info))))
 #+end_src
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 ;;; Mode Line Formate Function
 (defun cdr:display-mode-line ()
-  (setq mode-line-format '("%e" mode-line-front-space
-                           mode-line-mule-info
-                           mode-line-client
-                           mode-line-modified
-                           mode-line-remote
-                           mode-line-frame-identification
-                           mode-line-buffer-identification
-                           "   "
-                           mode-line-position
-                           (vc-mode
-                            vc-mode)
-                           " "
-                           mode-line-modes
-                           mode-line-end-spaces)))
+  (unless (string-equal (substring (symbol-name major-mode) 0 4) "ebib")
+    (setq mode-line-format '("%e" mode-line-front-space
+                             mode-line-mule-info
+                             mode-line-client
+                             mode-line-modified
+                             mode-line-remote
+                             mode-line-frame-identification
+                             mode-line-buffer-identification
+                             "   "
+                             mode-line-position
+                             (vc-mode
+                              vc-mode)
+                             " "
+                             mode-line-modes
+                             mode-line-end-spaces))))
 #+end_src
 *** Random Thing From A File
     Found the basic function [[https://www.emacswiki.org/emacs/RandomThingFromAFile][here]]. The author did not leave their
@@ -1603,14 +1622,73 @@ level in Org-Mode."
   (insert
    (gui-get-primary-selection)))
 #+end_src
-*** Copy Entire Subtree for Post to Canvas
-#+begin_src elisp
-(defun copy-unfilled-subtree ()
-  "Copies the current Org-Mode subtree after unfilling the region, for
-use with websites not expecting 80 columns."
-  (interactive) (org-mark-subtree) (next-line) (unfill-paragraph t)
-  (copy-region-as-kill 0 0 t) (org-mark-subtree) (next-line)
-  (fill-paragraph nil t) (message "Unfilled Subtree Copied!"))
+*** Copy Unfilled Subtree
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(defun cdr:orgy-copy-unfilled-subtree ()
+  "Kills the subtree at point after unfilling it. Meant to be
+  used for transferring information to other sources that
+  expect unfilled (line-wrapped) input."
+  (interactive)
+  (cdr:orgy-mark-subtree)
+  (cdr:copy-unfilled-region)
+  (org-previous-visible-heading 1)
+  (message "Copied Unfilled Subtree!"))
+
+(defun cdr:orgy-mark-subtree ()
+  "Marks the entirety of the contents of the current subtree, but
+not the heading."
+  (interactive)
+  (org-previous-visible-heading 1)
+  (org-mark-subtree)
+  (next-line))
+
+(defun cdr:copy-unfilled-region (&optional region-start region-end)
+  "Non-destructively kills the current region in an unfilled
+state, for transfer to a system that expects such input."
+  (interactive)
+  (let ((region-start
+         (or region-start (region-beginning)))
+        (region-end
+         (or region-end (region-end))))
+    (unfill-region region-start region-end)
+    (kill-ring-save region-start region-end)
+    (fill-region region-start region-end)))
+#+end_src
+*** Kill Lines Matching Regex
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(defun kill-matching-lines (regexp &optional rstart rend interactive)
+  "Kill lines containing matches for REGEXP.
+
+See `flush-lines' or `keep-lines' for behavior of this command.
+
+If the buffer is read-only, Emacs will beep and refrain from deleting
+the line, but put the line in the kill ring anyway.  This means that
+you can use this command to copy text from a read-only buffer.
+\(If the variable `kill-read-only-ok' is non-nil, then this won't
+even beep.)"
+  (interactive
+   (keep-lines-read-args "Kill lines containing match for regexp"))
+  (let ((buffer-file-name nil)) ;; HACK for `clone-buffer'
+    (with-current-buffer (clone-buffer nil nil)
+      (let ((inhibit-read-only t))
+        (keep-lines regexp rstart rend interactive)
+        (kill-region (or rstart (line-beginning-position))
+                     (or rend (point-max))))
+      (kill-buffer)))
+  (unless (and buffer-read-only kill-read-only-ok)
+    ;; Delete lines or make the "Buffer is read-only" error.
+    (flush-lines regexp rstart rend interactive)))
+#+end_src
+*** Dired Change Views
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(defun cdr:diredy-hide-dotfiles ()
+    "Removes the 'a' flag from dired-listing-switches."
+    (interactive)
+    (setq dired-listing-switches "-DFhikmopqs"))
+(defun cdr:diredy-show-dotfiles ()
+    "Adds the 'a' flag from dired-listing-switches."
+    (interactive)
+    (setq dired-listing-switches "-aDFhikmopqs"))
 #+end_src
 ** Skeletons
    These are all templates I defined using skeleton.el
@@ -1936,7 +2014,6 @@ use with websites not expecting 80 columns."
 
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 ;; Make it so code blocks in Org Babel Behave Consistently.
-(setq geiser-default-implementation 'guile)
 (setq org-src-preserve-indentation t)
 #+end_src
 *** Setup and Header
@@ -3378,7 +3455,49 @@ Since I use a Zettelkasten, I need to be able to cite things.
 
 #+begin_src elisp :tangle ~/.emacs.d/init.el
   (setq org-cite-global-bibliography
-        "~/Documents/biblio/main.bib")
+        '("~/Documents/biblio/main.bib"))
+#+end_src
+** Gnus
+*** Gnus Config
+#+begin_src elisp :tangle ~/.gnus
+(setq message-send-mail-function 'smtpmail-send-it
+      send-mail-function 'smtpmail-send-it
+      smtpmail-smtp-server "ballard.amazon.com"
+      smtpmail-local-domain "amazon.com"
+      imap-enable-exchange-bug-workaround t
+      gnus-select-method
+      '(nnimap "amazon"
+	       (nnimap-address "ballard.amazon.com")
+ 	       (nnimap-stream ssl)
+ 	       (nnimap-server-port 1993))
+;; This avoids printing nnimap:exchange in front of every group name.
+      gnus-group-line-format "%M%S%p%5y:%B%(%G%)%O
+"
+      mml-secure-openpgp-signers '("F39CD46349A576F88EF924791102102EBE7C3AE4")
+      user-mail-address "rodnchr@amazon.com"
+      mh-mml-method-default "pgp"
+      mml-default-encrypt-method "pgp"
+      mml-default-sign-method "pgp")
+(add-hook 'message-setup-hook 'mml-secure-message-sign)
+;; (add-to-list 'gnus-secondary-select-methods
+;;              '(nnimap "gmail-cdr255"
+;;                       (nnimap-address "imap.gmail.com")
+;;                       (nnimap-server-port "imaps")
+;;                       (nnimap-stream ssl)
+;;                       (nnir-search-engine imap)
+;;                       ; @see http://www.gnu.org/software/emacs/manual/html_node/gnus/Expiring-Mail.html
+;;                       ;; press 'E' to expire email
+;;                       (nnmail-expiry-target "nnimap+gmail:[Gmail]/Trash")
+;;                       (nnmail-expiry-wait immediate)))
+#+end_src
+*** Org-Mime for Gnus
+Sets Up HTML Email Options.
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(setq org-mime-export-options '(:with-latex dvipng
+                                :section-numbers nil
+                                :with-author nil
+                                :with-toc nil)
+      org-mime-export-ascii 'utf-8)
 #+end_src
 ** UI
 *** Check if We're in a GUI
@@ -3424,6 +3543,7 @@ Since I use a Zettelkasten, I need to be able to cite things.
       use-file-dialog nil
       use-dialog-box nil
       whitespace-line-column nil)
+(setq-default fill-column 80)
 #+end_src
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 (setq-default indent-tabs-mode nil
