@@ -1690,6 +1690,36 @@ even beep.)"
     (interactive)
     (setq dired-listing-switches "-aDFhikmopqs"))
 #+end_src
+*** Insert Templates
+I store my templates in this file as well as in =~/.emacs/templates=. Because
+they are often used, I want to be able to bind their insertion to a sequence of
+keys.
+**** Scheme Docstring
+Here is the template for my scheme docstrings. It allows all of my functions to
+have consistent looking documentation.
+
+#+begin_src text :tangle ~/.emacs.d/templates/scheme-docstring.txt
+"Summary
+
+Arguments
+=========
+
+Returns
+=======
+
+Side Effects
+============"
+#+end_src
+
+And here is a function to insert that file programmatically.
+
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(defun cdr:templates-insert-scm-docstring ()
+  "Inserts a docstring at the current position."
+  (interactive)
+  (insert-file-contents "~/.emacs.d/templates/scheme-docstring.txt"))
+#+end_src
+
 ** Skeletons
    These are all templates I defined using skeleton.el
 *** HOG Skeleton
@@ -1750,6 +1780,13 @@ even beep.)"
 ** Generators
    These are my own templating functions, for use in new files when
    starting out.
+** Macros
+*** Genpro Update
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(fset 'cdr:run-genpro-and-update
+   (kmacro-lambda-form [?\M-! ?g ?e ?n ?p ?r ?o ?  ?- ?p return
+   ?\C-x ?o ?\C-x ?k return ?g ?y ?e ?s return ?\C-x ?o] 0 "%d"))
+#+end_src
 ** Org Mode
    I am as much an Org-Mode devotee as I am an Emacs User, so this
    section has a lot in it as well.
@@ -3599,7 +3636,6 @@ Sets Up HTML Email Options.
 ;; Maps
 
 ;;; Prefixes
-
 (define-prefix-command 'template-map)
 (define-prefix-command 'subprocess-map)
 (define-prefix-command 'process-buffer-map)
@@ -3611,8 +3647,9 @@ Sets Up HTML Email Options.
 
 (define-key template-map (kbd "s") #'orgy-setup-cm-step)
 (define-key template-map (kbd "h") #'hog-skeleton)
-(define-key template-map (kbd "t") #'teammeeting-skeleton)
+(define-key template-map (kbd "m") #'teammeeting-skeleton)
 (define-key template-map (kbd "w") #'orgy-kill-cm-for-hog)
+(define-key template-map (kbd "d") #'cdr:templates-insert-scm-docstring)
 #+end_src
 **** The Subprocess Map
 #+begin_src elisp :tangle ~/.emacs.d/init.el
@@ -3647,7 +3684,7 @@ Sets Up HTML Email Options.
 ;(global-set-key (kbd "<f3>") nil) ; Define Macros
 ;(global-set-key (kbd "<f4>") nil) ; Run Macro
 (global-set-key (kbd "<f5>") 'emms)
-(global-set-key (kbd "<f6>") 'telega)
+(global-set-key (kbd "<f6>") 'ebib)
 (global-set-key (kbd "<f7>") 'mastodon)
 (global-set-key (kbd "<f8>") 'elfeed)
 (global-set-key (kbd "<f9>") 'org-agenda)
@@ -3676,12 +3713,12 @@ Sets Up HTML Email Options.
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 ;;; Meta Function (Misc)
 
-;; (global-set-key (kbd "M-<f1>") nil)
-;; (global-set-key (kbd "M-<f2>") nil)
-;; (global-set-key (kbd "M-<f3>") nil)
-;; (global-set-key (kbd "M-<f4>") nil) ; Close Program
-;; (global-set-key (kbd "M-<f5>") nil)
-;; (global-set-key (kbd "M-<f6>") nil)
+(global-set-key (kbd "M-<f1>") 'org-pomodoro)
+(global-set-key (kbd "M-<f2>") 'ebib-insert-citation)
+(global-set-key (kbd "M-<f3>") 'emms-previous)
+(global-set-key (kbd "M-<f4>") 'emms-next) ; Close Program
+(global-set-key (kbd "M-<f5>") 'emms-pause)
+(global-set-key (kbd "M-<f6>") 'emms-shuffle)
 ;; (global-set-key (kbd "M-<f7>") nil)
 ;; (global-set-key (kbd "M-<f8>") nil)
 ;; (global-set-key (kbd "M-<f9>") nil)
@@ -3697,7 +3734,7 @@ Sets Up HTML Email Options.
 (global-set-key (kbd "s-w") 'whitespace-mode)
 (global-set-key (kbd "s-e") 'show-paren-mode)
 (global-set-key (kbd "s-r") 'display-line-numbers-mode)
-;; (global-set-key (kbd "s-t") nil)
+(global-set-key (kbd "s-t") 'titlecase-dwim)
 (global-set-key (kbd "s-y") 'yank-from-primary)
 (global-set-key (kbd "s-u") 'unfill-paragraph)
 ;; (global-set-key (kbd "s-i") nil)
@@ -3707,7 +3744,7 @@ Sets Up HTML Email Options.
 ;; (global-set-key (kbd "s-s") nil) ; GNOME Switch Window Menu
 ;; (global-set-key (kbd "s-d") nil) ; GNOME Show Desktop
 (global-set-key (kbd "s-f") 'display-fill-column-indicator-mode)
-;; (global-set-key (kbd "s-g") nil)
+(global-set-key (kbd "s-g") 'cdr:run-genpro-and-update)
 ;; (global-set-key (kbd "s-h") nil) ; GNOME ?
 ;; (global-set-key (kbd "s-j") nil)
 ;; (global-set-key (kbd "s-k") nil)
@@ -3922,20 +3959,18 @@ Sets Up HTML Email Options.
 (when *initializing*
   (mapcar #'gnewbg
           '("Emacs"
-            "Email"
             "Messaging")))
 #+end_src
 *** Define Window Placement Rules
 #+begin_src lisp :tangle ~/.config/stumpwm/window-placement.lisp
-(("Email" 0 T T :CLASS "Evolution.real" :INSTANCE "evolution.real")
- ("Email" 1 T ("y" T) :CLASS "Daily" :INSTANCE "Mail" :TITLE NIL :ROLE "3pane")
- ("Emacs" 0 T T :CLASS "Emacs" :INSTANCE "emacs")
- ("Default" 1 T T :CLASS "Firefox")
+(("Emacs" 0 T T :CLASS "Emacs" :INSTANCE "emacs")
+ ("Default" 1 T T :CLASS "firefox")
  ("Default" 0 T T :CLASS "URxvt")
  ("Messaging" 0 T ("y" T) :CLASS "Slack" :INSTANCE "slack" :TITLE NIL :ROLE
   "browser-window")
- ("Messaging" 0 T ("y" T) :CLASS "Google-chrome" :INSTANCE "google-chrome"
-  :TITLE NIL :ROLE "browser"))
+ ("Messaging" 1 T ("y" T) :CLASS "Google-chrome" :INSTANCE "google-chrome"
+  :TITLE NIL :ROLE "browser")
+ ("Messaging" 2 T ("y" T) :CLASS "discord"))
 #+end_src
 *** Load Window Placement Rules
 #+begin_src lisp :tangle ~/.config/stumpwm/config
@@ -3954,10 +3989,9 @@ Sets Up HTML Email Options.
  "exec firefox"
  "exec urxvt"
  "exec emacs"
- "exec icedove"
- "exec evolution"
  "exec google-chrome"
- "exec slack")
+ "exec slack"
+ "exec discord")
 #+end_src
 * =~/.mednafen/mednafen.cfg=
 #+begin_src conf :tangle ~/.mednafen/mednafen.cfg
@@ -27121,7 +27155,7 @@ Host cdr255.com
 #+end_src
 * =~/.Xresources=
 ** Color Scheme for Terminals
-#+begin_src conf-unix :tangle ~/.Xresources
+#+begin_src conf-unix
 !! Color Scheme is bespin.dark from terminal.sexy
 ! special
 ,*.foreground:   #8a8986
@@ -27160,6 +27194,127 @@ Host cdr255.com
 ,*.color7:       #8a8986
 ,*.color15:      #baae9e
 
+#+end_src
+
+#+begin_src conf-unix
+!! Color Scheme is /xcolors.net/swayr from terminal.sexy
+! special
+,*.foreground:   #c2b9a1
+,*.background:   #1c1709
+,*.cursorColor:  #c2b9a1
+
+! black
+,*.color0:       #1c1709
+,*.color8:       #4f4939
+
+! red
+,*.color1:       #8e4317
+,*.color9:       #f07935
+
+! green
+,*.color2:       #787200
+,*.color10:      #d9d138
+
+! yellow
+,*.color3:       #945c00
+,*.color11:      #ffab26
+
+! blue
+,*.color4:       #315094
+,*.color12:      #8aa9ed
+
+! magenta
+,*.color5:       #5c2e40
+,*.color13:      #ff8cb8
+
+! cyan
+,*.color6:       #00617d
+,*.color14:      #43bfe0
+
+! white
+,*.color7:       #c2b9a1
+,*.color15:      #f2e8c9
+
+#+end_src
+
+#+begin_src conf-unix
+!! Color Scheme is /collection/s3r0-modified from terminal.sexy
+! special
+,*.foreground:   #c0b18b
+,*.background:   #1f1f1f
+,*.cursorColor:  #c0b18b
+
+! black
+,*.color0:       #4a3637
+,*.color8:       #4a3637
+
+! red
+,*.color1:       #d17b49
+,*.color9:       #d17b49
+
+! green
+,*.color2:       #7b8748
+,*.color10:      #7b8748
+
+! yellow
+,*.color3:       #af865a
+,*.color11:      #af865a
+
+! blue
+,*.color4:       #535c5c
+,*.color12:      #535c5c
+
+! magenta
+,*.color5:       #775759
+,*.color13:      #775759
+
+! cyan
+,*.color6:       #6d715e
+,*.color14:      #6d715e
+
+! white
+,*.color7:       #c0b18b
+,*.color15:      #c0b18b
+#+end_src
+
+#+begin_src conf-unix :tangle ~/.Xresources
+!! Color Scheme is /collection/s3r0-modified from terminal.sexy
+! special
+,*.foreground:   #e1e1e0
+,*.background:   #2d3743
+,*.cursorColor:  #e1e1e0
+
+! black
+,*.color0:       #2d3743
+,*.color8:       #2d3743
+
+! red
+,*.color1:       #ff4242
+,*.color9:       #ff4242
+
+! green
+,*.color2:       #338f86
+,*.color10:      #338f86
+
+! yellow
+,*.color3:       #ffad29
+,*.color11:      #ffad29
+
+! blue
+,*.color4:       #34cae2
+,*.color12:      #34cae2
+
+! magenta
+,*.color5:       #ee7ae9
+,*.color13:      #ee7ae9
+
+! cyan
+,*.color6:       #e67128
+,*.color14:      #e67128
+
+! white
+,*.color7:       #e1e1e0
+,*.color15:      #e1e1e0
 #+end_src
 ** =rxvt-unicode= config
 #+begin_src conf-unix :tangle ~/.Xresources
