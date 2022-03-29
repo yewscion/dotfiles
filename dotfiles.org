@@ -3494,8 +3494,9 @@ Since I use a Zettelkasten, I need to be able to cite things.
   (setq org-cite-global-bibliography
         '("~/Documents/biblio/main.bib"))
 #+end_src
-** Gnus
-*** Gnus Config
+** Email
+*** Gnus
+**** Gnus Config
 #+begin_src elisp :tangle ~/.gnus
 (setq message-send-mail-function 'smtpmail-send-it
       send-mail-function 'smtpmail-send-it
@@ -3527,7 +3528,7 @@ Since I use a Zettelkasten, I need to be able to cite things.
 ;;                       (nnmail-expiry-target "nnimap+gmail:[Gmail]/Trash")
 ;;                       (nnmail-expiry-wait immediate)))
 #+end_src
-*** Org-Mime for Gnus
+**** Org-Mime for Gnus
 Sets Up HTML Email Options.
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 (setq org-mime-export-options '(:with-latex dvipng
@@ -3535,6 +3536,14 @@ Sets Up HTML Email Options.
                                 :with-author nil
                                 :with-toc nil)
       org-mime-export-ascii 'utf-8)
+#+end_src
+*** OfflineIMAP
+Utility Function for use with offlineimap.py
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(defun offlineimap-get-password (host port)
+  (let* ((authinfo (netrc-parse (expand-file-name "~/.authinfo.gpg")))
+         (hostentry (netrc-machine authinfo host port port)))
+    (when hostentry (netrc-get hostentry "password"))))
 #+end_src
 ** UI
 *** Check if We're in a GUI
@@ -27339,4 +27348,104 @@ URxvt.iso14755: false
 URxvt.scrollTtyOutput: false
 URxvt*print-pipe: cat > $HOME/Downloads/$(date --iso-8601=s | sed 's/://g').urxvt.out
 URxvt.loginShell: true
+#+end_src
+* =~/.offlineimaprc=
+** Python Helper Script
+#+begin_src python :tangle ~/.offlineimap.py
+#!/usr/bin/python
+import re, os
+import subprocess
+
+### For without emacs functionality:
+def get_authinfo_password(machine, login, port):
+    s = "machine %s login %s password ([^ ]*) port %s" % (machine, login, port)
+    p = re.compile(s)
+    authinfo = os.popen("gpg -q --no-tty -d ~/.authinfo.gpg").read()
+    return p.search(authinfo).group(1)
+### For with emacs functionality:
+def get_output(cmd):
+    # Bunch of boilerplate to catch the output of a command:
+    pipe = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    (output, errout) = pipe.communicate()
+    assert pipe.returncode == 0 and not errout
+    return output
+def get_password_emacs(host, port):
+    cmd = "emacsclient --eval '(offlineimap-get-password \"%s\" \"%s\")'" % (host,port)
+    return get_output(cmd).strip().lstrip(b'"').rstrip(b'"')
+#+end_src
+** Actual Config
+*** General
+#+begin_src conf-unix
+[general]
+accounts = cdr255, yewscion, rodnchr
+maxsyncaccounts = 3
+pythonfile = ~/.offlineimap.py
+#+end_src
+*** cdr255@gmail.com
+#+begin_src conf-unix
+[Account cdr255]
+localrepository = Localcdr255
+remoterepository = Remotecdr255
+autorefresh = 5
+quick = 10
+postsynchook = mu index
+
+[Repository Localcdr255]
+type = Maildir
+localfolders = ~/Maildir/cdr255
+
+[Repository Remotecdr255]
+type = Gmail
+realdelete = no
+maxconnections = 2
+remoteuser = cdr255@gmail.com
+remotepasseval = get_password_emacs("gmail-cdr255", "imaps")
+folderfilter = lambda foldername: foldername in ['INBOX']
+sslcacertfile = OS-DEFAULT
+#+end_src
+*** yewscion@gmail.com
+#+begin_src conf-unix
+[Account yewscion]
+localrepository = Localyewscion
+remoterepository = Remoteyewscion
+autorefresh = 5
+quick = 10
+postsynchook = mu index
+
+[Repository Localyewscion]
+type = Maildir
+localfolders = ~/Maildir/yewscion
+
+[Repository Remoteyewscion]
+type = Gmail
+realdelete = no
+maxconnections = 2
+remoteuser = yewscion@gmail.com
+remotepasseval = get_password_emacs("gmail-yewscion", "imaps")
+folderfilter = lambda foldername: foldername in ['INBOX']
+sslcacertfile = OS-DEFAULT
+#+end_src
+*** rodnchr@amazon.com
+#+begin_src conf-unix
+[Account rodnchr]
+localrepository = Localrodnchr
+remoterepository = Remoterodnchr
+autorefresh = 5
+quick = 10
+postsynchook = mu index
+
+[Repository Localrodnchr]
+type = Maildir
+localfolders = ~/Maildir/rodnchr
+
+[Repository Remoterodnchr]
+type = IMAP
+maxconnections = 2
+ssl = yes
+remotehost = ballard.amazon.com
+remoteport = 1993
+remoteuser = ANT\\rodnchr
+remotepasseval = get_password_emacs("work-rodnchr", "1993")
+#folderfilter = lambda foldername: foldername in ['INBOX']
+sslcacertfile = OS-DEFAULT
 #+end_src
