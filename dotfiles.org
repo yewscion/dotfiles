@@ -882,8 +882,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 	emms-player-list
 	'(emms-player-mpv
 	  emms-player-xmp
-	  emms-player-timidity
-	  emms-player-adlmidi) ; Reverse Order of Precedence
+          emms-player-adlmidi
+	  emms-player-timidity) ; Reverse Order of Precedence
 
 	emms-player-timidity-command-name
 	"timidity"
@@ -1719,7 +1719,36 @@ And here is a function to insert that file programmatically.
   (interactive)
   (insert-file-contents "~/.emacs.d/templates/scheme-docstring.txt"))
 #+end_src
+*** Email Related
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(defun cdr:edit-email-as-org ()
+  "Create an indirect buffer for an Email Message's content, and switch to Org Mode."
+  (interactive)
+  (goto-char (point-min))
+  (search-forward "--text follows this line--")
+  (forward-line 1)
+  (insert " ")
+  (beginning-of-line)
+  (let ((beginning-of-region (point)))
+    (end-of-line)
+    (edit-indirect-region beginning-of-region (point) t)
+    (beginning-of-line)
+    (delete-char 1)
+    (org-mode)))
+#+end_src
 
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(defun cdr:message-send-and-exit ()
+  "Wrapper for `message-send-and-exit` that also ensures the
+  email is signed and that org has been HTMLized."
+  (interactive)
+  (goto-char (point-min))
+  (org-mime-htmlize)
+  (mml-secure-message-sign)
+  (if (y-or-n-p "Send Email?")
+      (message-send-and-exit)
+    (message "Email not Sent.")))
+#+end_src
 ** Skeletons
    These are all templates I defined using skeleton.el
 *** HOG Skeleton
@@ -3545,15 +3574,132 @@ Utility Function for use with offlineimap.py
          (hostentry (netrc-machine authinfo host port port)))
     (when hostentry (netrc-get hostentry "password"))))
 #+end_src
+*** Msmtp
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(setq send-mail-function 'sendmail-send-it
+      message-send-mail-function 'sendmail-send-it
+      sendmail-program "msmtp"
+      mail-specify-envelope-from t
+      message-sendmail-envelope-from 'header
+      mail-envelope-from 'header
+      mml-secure-openpgp-signers '("F39CD46349A576F88EF924791102102EBE7C3AE4")
+      user-mail-address ""
+      mh-mml-method-default "pgp"
+      mml-default-encrypt-method "pgp"
+      mml-default-sign-method "pgp"
+      message-sendmail-extra-arguments '("--read-envelope-from"))
+(add-hook 'message-setup-hook 'mml-secure-message-sign)
+#+end_src
+*** mu4e
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(require 'mu4e)
+(add-to-list 'mu4e-bookmarks
+  '( :name  "Non-Trashed"
+     :query "not maildir:/trash and not maildir:/sent"
+     :key   ?n))
+
+ (setq mu4e-contexts
+    `( ,(make-mu4e-context
+          :name "cdr255"
+          :enter-func (lambda () (mu4e-message "Entering 'cdr255' context"))
+          :leave-func (lambda () (mu4e-message "Leaving 'cdr255' context"))
+          :match-func (lambda (msg)
+                        (when msg
+                          (string-match-p "^/cdr255" (mu4e-message-field msg :maildir))))
+          :vars '( ( user-mail-address	    . "cdr255@gmail.com"  )
+                   ( user-full-name	    . "Christopher Rodriguez" )
+                   ( mu4e-compose-signature .
+                     (concat
+                       "--\n\n"
+                       "Christopher Rodriguez\n"))))
+       ,(make-mu4e-context
+          :name "work"
+          :enter-func (lambda () (mu4e-message "Entering 'work' context"))
+          :leave-func (lambda () (mu4e-message "Leaving 'work' context"))
+          :match-func (lambda (msg)
+                        (when msg
+                          (string-match-p "^/rodnchr" (mu4e-message-field msg :maildir))))
+          :vars '( ( user-mail-address	     . "rodnchr@amazon.com" )
+                   ( user-full-name	     . "Christopher Rodriguez" )
+                   ( mu4e-compose-signature  .
+                     (concat
+                       "--\n\n"
+                       "Christopher Rodriguez\n"))))
+       ,(make-mu4e-context
+          :name "school"
+          :enter-func (lambda () (mu4e-message "Entering 'school' context"))
+          :leave-func (lambda () (mu4e-message "Leaving 'school' context"))
+          :match-func (lambda (msg)
+                        (when msg
+                          (string-match-p "^/csuglobal" (mu4e-message-field msg :maildir))))
+          :vars '( ( user-mail-address	     . "christopher.rodriguez@csuglobal.com" )
+                   ( user-full-name	     . "Christopher Rodriguez" )
+                   ( mu4e-compose-signature  .
+                     (concat
+                       "--\n\n"
+                       "Christopher Rodriguez\n"))))
+       ,(make-mu4e-context
+          :name "yewscion"
+          :enter-func (lambda () (mu4e-message "Entering 'yewscion' context"))
+          :leave-func (lambda () (mu4e-message "Leaving 'yewscion' context"))
+          :match-func (lambda (msg)
+                        (when msg
+                          (string-match-p "^/yewscion" (mu4e-message-field msg :maildir))))
+          :vars '( ( user-mail-address	     . "yewscion@gmail.com" )
+                   ( user-full-name	     . "Christopher Rodriguez" )
+                   ( mu4e-compose-signature  .
+                     (concat
+                       "--\n\n"
+                       "Christopher Rodriguez\n"))))))
+
+(setq mu4e-compose-context-policy nil
+      mu4e-context-policy 'pick-first
+      mu4e-compose-keep-self-cc t)
+(add-hook 'mu4e-compose-mode-hook 'cdr:edit-email-as-org)
+(substitute-key-definition 'message-send-and-exit 'cdr:message-send-and-exit mu4e-compose-mode-map)
+(define-mail-user-agent 'mu4e-user-agent
+    'mu4e-compose-mail
+    'message-send-and-exit
+    'message-kill-buffer
+    'message-send-hook)
+  ;; Without this `mail-user-agent' cannot be set to `mu4e-user-agent'
+  ;; through customize, as the custom type expects a function.  Not
+  ;; sure whether this function is actually ever used; if it is then
+  ;; returning the symbol is probably the correct thing to do, as other
+  ;; such functions suggest.
+(defun mu4e-user-agent ()
+  "Return the `mu4e-user-agent' symbol."
+  'mu4e-user-agent)
+
+(setq mail-user-agent (mu4e-user-agent))
+#+end_src
 ** UI
+*** Defaults
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(menu-bar-mode 0)
+(tool-bar-mode 0)
+(scroll-bar-mode 0)
+(column-number-mode 1)
+(display-time-mode 1)
+(guru-global-mode 1)
+(global-disable-mouse-mode)
+(display-battery-mode)
+(set-face-attribute 'default nil
+                    :family "FreeMono"
+                    :height 110
+                    :weight 'normal
+                    :width 'normal)
+(set-face-attribute 'fixed-pitch nil
+                    :family "FreeMono"
+                    :height 110
+                    :weight 'normal
+                    :width 'normal)
+#+end_src
 *** Check if We're in a GUI
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 ;;; Set Up UI
 (when (display-graphic-p)
-  (progn (menu-bar-mode 0)
-         (tool-bar-mode 0)
-         (scroll-bar-mode 0)
-         ;; Emoji Support
+  (progn ;; Emoji Support
          (setq use-default-font-for-symbols nil
                emojify-display-style 'unicode
                emojify-emoji-styles '(github unicode))
@@ -3568,14 +3714,6 @@ Utility Function for use with offlineimap.py
                              "Unifont, Upper" nil 'append))
          (my-emoji-fonts)))
 #+end_src
-*** Enable Some Useful Modes
-#+begin_src elisp :tangle ~/.emacs.d/init.el
-(column-number-mode 1)
-(display-time-mode 1)
-(guru-global-mode 1)
-(global-disable-mouse-mode)
-(display-battery-mode)
-#+end_src
 *** Change Some Defaults
 #+begin_src elisp :tangle ~/.emacs.d/init.el
 (setq inhibit-startup-screen t
@@ -3589,10 +3727,8 @@ Utility Function for use with offlineimap.py
       use-file-dialog nil
       use-dialog-box nil
       whitespace-line-column nil)
-(setq-default fill-column 80)
-#+end_src
-#+begin_src elisp :tangle ~/.emacs.d/init.el
-(setq-default indent-tabs-mode nil
+(setq-default fill-column 80
+              indent-tabs-mode nil
               show-trailing-whitespace nil)
 #+end_src
 *** Set Code Fonts
@@ -3618,19 +3754,36 @@ Utility Function for use with offlineimap.py
 #+end_src
 
 #+begin_src elisp :tangle ~/.emacs.d/init.el
-(setq global-mode-string
-      '("🎼" emms-mode-line-string emms-playing-time-string " ⌚"
-        display-time-string " 🔋" battery-mode-line-string " 🦆"
-        org-mode-line-string)
+(if (display-graphic-p)
+    (setq global-mode-string
+          '("🎼"
+            emms-mode-line-string
+            emms-playing-time-string
+            " ⌚"
+            display-time-string
+            " 🔋"
+            battery-mode-line-string
+            " 🦆"
+            org-mode-line-string))
+  (setq global-mode-string
+        '("♪"
+          emms-mode-line-string
+          emms-playing-time-string
+          " ✪ "
+          display-time-string
+          " ䷡"
+          battery-mode-line-string
+          " ✿"
+          org-mode-line-string)))
+(setq
+ display-time-default-load-average
+ nil
+ 
+ display-time-day-and-date
+ 't
 
-      display-time-default-load-average
-      nil
-
-      display-time-day-and-date
-      't
-
-      display-time-load-average-threshold
-      10000)
+ display-time-load-average-threshold
+ 10000)
 #+end_src
 
 *** Finish Setting Up EMMS for Headerline
@@ -3638,6 +3791,11 @@ Utility Function for use with offlineimap.py
 ;;; Header Line Format
 (setq emms-mode-line-cycle-current-title-function
       'cdr:emms-describe-track)
+#+end_src
+
+*** Pinentry
+#+begin_src elisp :tangle ~/.emacs.d/init.el
+(pinentry-start)
 #+end_src
 ** Keys
 *** Prefix Maps
@@ -27374,21 +27532,27 @@ def get_password_emacs(host, port):
     return get_output(cmd).strip().lstrip(b'"').rstrip(b'"')
 #+end_src
 ** Actual Config
+:PROPERTIES:
+:header-args: :tangle ~/.offlineimaprc
+:END:
+
 *** General
 #+begin_src conf-unix
 [general]
-accounts = cdr255, yewscion, rodnchr
-maxsyncaccounts = 3
+# If not at work, remove "rodnchr" from the following list.
+accounts = cdr255, yewscion, csuglobal, rodnchr
+maxsyncaccounts = 4
 pythonfile = ~/.offlineimap.py
 #+end_src
 *** cdr255@gmail.com
 #+begin_src conf-unix
+
+# cdr255@gmail.com
 [Account cdr255]
 localrepository = Localcdr255
 remoterepository = Remotecdr255
 autorefresh = 5
 quick = 10
-postsynchook = mu index
 
 [Repository Localcdr255]
 type = Maildir
@@ -27402,15 +27566,17 @@ remoteuser = cdr255@gmail.com
 remotepasseval = get_password_emacs("gmail-cdr255", "imaps")
 folderfilter = lambda foldername: foldername in ['INBOX']
 sslcacertfile = OS-DEFAULT
+
 #+end_src
 *** yewscion@gmail.com
 #+begin_src conf-unix
+
+# yewscion@gmail.com
 [Account yewscion]
 localrepository = Localyewscion
 remoterepository = Remoteyewscion
 autorefresh = 5
 quick = 10
-postsynchook = mu index
 
 [Repository Localyewscion]
 type = Maildir
@@ -27424,15 +27590,41 @@ remoteuser = yewscion@gmail.com
 remotepasseval = get_password_emacs("gmail-yewscion", "imaps")
 folderfilter = lambda foldername: foldername in ['INBOX']
 sslcacertfile = OS-DEFAULT
+
+#+end_src
+*** christopher.rodriguez@csuglobal.edu
+#+begin_src conf-unix
+
+# christopher.rodriguez@csuglobal.com
+[Account csuglobal]
+localrepository = Localcsuglobal
+remoterepository = Remotecsuglobal
+autorefresh = 5
+quick = 10
+
+[Repository Localcsuglobal]
+type = Maildir
+localfolders = ~/Maildir/csuglobal
+
+[Repository Remotecsuglobal]
+type = Gmail
+realdelete = no
+maxconnections = 2
+remoteuser = christopher.rodriguez@csuglobal.edu
+remotepasseval = get_password_emacs("email-csuglobal", "imaps")
+folderfilter = lambda foldername: foldername in ['INBOX']
+sslcacertfile = OS-DEFAULT
+
 #+end_src
 *** rodnchr@amazon.com
 #+begin_src conf-unix
+
+# rodnchr@amazon.com
 [Account rodnchr]
 localrepository = Localrodnchr
 remoterepository = Remoterodnchr
 autorefresh = 5
 quick = 10
-postsynchook = mu index
 
 [Repository Localrodnchr]
 type = Maildir
@@ -27446,6 +27638,6 @@ remotehost = ballard.amazon.com
 remoteport = 1993
 remoteuser = ANT\\rodnchr
 remotepasseval = get_password_emacs("work-rodnchr", "1993")
-#folderfilter = lambda foldername: foldername in ['INBOX']
+folderfilter = lambda folder: folder not in ['Calendar','Calendar/Birthdays','Calendar/Sub Folder 1','Calendar/Sub Folder 2','Calendar/United States holidays','Contacts','Contacts/Sub Folder 1','Contacts/Sub Folder 2','Contacts/Skype for Business Contacts','Deleted Items','Drafts','Journal','Junk Email','Notes','Outbox','Sync Issues','Sync Issues/Conflicts','Sync Issues/Local Failures','Sync Issues/Server Failures','Tasks','Tasks/Sub Folder 1','Tasks/Sub Folder 2']
 sslcacertfile = OS-DEFAULT
 #+end_src
